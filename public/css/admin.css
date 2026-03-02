@@ -1,11 +1,29 @@
 /* ═══════════════════════════════════════════
-   Admin Panel — Design System
+   Admin Panel — Design System (Dark/Light)
    ═══════════════════════════════════════════ */
 
 :root {
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
     --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-fast: 0.15s;
+    --dur-normal: 0.3s;
+}
+
+/* ── Dark Theme ── */
+[data-theme="dark"] {
     --bg-body: #0a0e1a;
     --bg-card: rgba(17, 24, 39, 0.9);
     --bg-card-alt: rgba(30, 41, 59, 0.6);
@@ -20,11 +38,6 @@
     --border-default: rgba(255, 255, 255, 0.08);
     --border-focus: rgba(99, 102, 241, 0.5);
 
-    --accent: #6366f1;
-    --accent-light: #818cf8;
-    --accent-glow: rgba(99, 102, 241, 0.15);
-    --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
-
     --success: #34d399;
     --success-bg: rgba(52, 211, 153, 0.12);
     --danger: #f87171;
@@ -33,19 +46,44 @@
     --info: #60a5fa;
     --info-bg: rgba(96, 165, 250, 0.12);
 
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    --radius-full: 9999px;
-
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
     --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
 
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --dur-fast: 0.15s;
-    --dur-normal: 0.3s;
+    --gradient-bg: radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 30%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+}
+
+/* ── Light Theme ── */
+[data-theme="light"] {
+    --bg-body: #f8fafc;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --bg-card-alt: rgba(241, 245, 249, 0.8);
+    --bg-input: rgba(0, 0, 0, 0.04);
+    --bg-input-focus: rgba(0, 0, 0, 0.06);
+    --bg-overlay: rgba(255, 255, 255, 0.8);
+
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+
+    --border-default: rgba(0, 0, 0, 0.08);
+    --border-focus: rgba(99, 102, 241, 0.4);
+
+    --success: #10b981;
+    --success-bg: rgba(16, 185, 129, 0.08);
+    --danger: #ef4444;
+    --danger-bg: rgba(239, 68, 68, 0.08);
+    --warning: #f59e0b;
+    --info: #3b82f6;
+    --info-bg: rgba(59, 130, 246, 0.08);
+
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.08);
+
+    --gradient-bg: radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 30%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
 }
 
 *,
@@ -67,6 +105,47 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    transition: background var(--dur-normal) var(--ease-out),
+        color var(--dur-normal) var(--ease-out);
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: var(--gradient-bg);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    transition: all var(--dur-normal) var(--ease-out);
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1) rotate(15deg);
+    box-shadow: var(--shadow-lg);
+}
+
+.theme-icon {
+    font-size: 1.1rem;
+    line-height: 1;
 }
 
 /* ── Login Overlay ── */
@@ -78,9 +157,7 @@ body {
     align-items: center;
     justify-content: center;
     background: var(--bg-body);
-    background-image:
-        radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 70% 30%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+    background-image: var(--gradient-bg);
 }
 
 .login-card {
@@ -94,6 +171,8 @@ body {
     box-shadow: var(--shadow-lg), var(--shadow-glow);
     text-align: center;
     animation: fadeUp 0.5s var(--ease-out) both;
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes fadeUp {
@@ -299,6 +378,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
+    transition: background var(--dur-normal) var(--ease-out);
 }
 
 .admin-header-left {
@@ -327,6 +407,8 @@ body {
     max-width: 800px;
     margin: 0 auto;
     padding: 32px 24px 100px;
+    position: relative;
+    z-index: 1;
 }
 
 /* ── Tabs ── */
@@ -339,6 +421,7 @@ body {
     border-radius: var(--radius-lg);
     margin-bottom: 28px;
     overflow-x: auto;
+    transition: background var(--dur-normal) var(--ease-out);
 }
 
 .tab-btn {
@@ -407,6 +490,7 @@ body {
     border-radius: var(--radius-lg);
     padding: 28px;
     backdrop-filter: blur(12px);
+    transition: background var(--dur-normal) var(--ease-out);
 }
 
 /* ── API Section ── */
@@ -549,5 +633,12 @@ body {
     .login-card {
         margin: 16px;
         padding: 32px 24px;
+    }
+
+    .theme-toggle {
+        top: 12px;
+        right: 12px;
+        width: 38px;
+        height: 38px;
     }
 }

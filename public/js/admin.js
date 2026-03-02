@@ -8,6 +8,28 @@
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
+    // ── Theme Toggle ──
+    const themeToggle = $('#themeToggle');
+    const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
+
+    function initAdminTheme() {
+        const saved = localStorage.getItem('ip-query-theme') || 'dark';
+        document.body.setAttribute('data-theme', saved);
+        if (themeIcon) themeIcon.textContent = saved === 'dark' ? '🌙' : '🌞';
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const current = document.body.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', next);
+            if (themeIcon) themeIcon.textContent = next === 'dark' ? '🌙' : '🌞';
+            localStorage.setItem('ip-query-theme', next);
+        });
+    }
+
+    initAdminTheme();
+
     // ── DOM ──
     const loginOverlay = $('#loginOverlay');
     const loginForm = $('#loginForm');

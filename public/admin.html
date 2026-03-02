@@ -6,14 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 — IP 信息查询系统</title>
     <meta name="robots" content="noindex, nofollow">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/inter-ui@4.1.0/inter.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/admin.css">
 </head>
 
-<body>
+<body data-theme="dark">
+
+    <!-- 主题切换 -->
+    <button class="theme-toggle" id="themeToggle" title="切换主题 / Toggle Theme">
+        <span class="theme-icon">🌙</span>
+    </button>
 
     <!-- 登录遮罩 -->
     <div class="login-overlay" id="loginOverlay">

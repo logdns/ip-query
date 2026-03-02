@@ -62,7 +62,7 @@ cp .env.example .env
 
 ```env
 # 服务端口
-PORT=3000
+PORT=3008
 
 # AbuseIPDB API Keys (支持多个，逗号分隔)
 ABUSEIPDB_KEYS=your_key_1,your_key_2
@@ -90,8 +90,8 @@ npm start
 ```
 
 服务器启动后访问:
-- **前台**: http://localhost:3000
-- **管理后台**: http://localhost:3000/admin
+- **前台**: http://localhost:3008
+- **管理后台**: http://localhost:3008/admin
 
 ---
 
@@ -157,7 +157,7 @@ pm2 startup
 2. 点击 **设置** → **反向代理** → **添加反向代理**
 3. 填写：
    - **代理名称**: `ip-query`
-   - **目标 URL**: `http://127.0.0.1:3000`
+   - **目标 URL**: `http://127.0.0.1:3008`
 4. 点击 **提交**
 
 #### 或者手动编辑 Nginx 配置
@@ -179,7 +179,7 @@ location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
 
 # 反向代理到 Node.js
 location / {
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://127.0.0.1:3008;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection 'upgrade';

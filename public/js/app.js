@@ -51,10 +51,7 @@
         document.body.setAttribute('data-theme', next);
         themeIcon.textContent = next === 'dark' ? '🌙' : '🌞';
         localStorage.setItem('ip-query-theme', next);
-        // Update map tiles if map exists
-        if (leafletMap) {
-            updateMapTiles();
-        }
+        if (leafletMap) updateMapTiles();
     });
 
     // ═══════════════════════════════════════════
@@ -112,7 +109,7 @@
     }
 
     // ═══════════════════════════════════════════
-    // 检测 IP + 浏览器信息 Detect IP & Browser
+    // 检测 IP + 浏览器信息
     // ═══════════════════════════════════════════
     async function detectMyIP() {
         try {
@@ -153,7 +150,7 @@
     }
 
     // ═══════════════════════════════════════════
-    // IP 查询 IP Query
+    // IP 查询
     // ═══════════════════════════════════════════
     async function searchIP() {
         const ip = ipInput.value.trim();
@@ -180,7 +177,7 @@
     }
 
     // ═══════════════════════════════════════════
-    // UI 状态管理 UI State
+    // UI 状态管理
     // ═══════════════════════════════════════════
     function showSection(section) {
         loadingSection.classList.toggle('hidden', section !== 'loading');
@@ -212,7 +209,7 @@
     document.head.appendChild(shakeStyle);
 
     // ═══════════════════════════════════════════
-    // Leaflet 地图 Map
+    // Leaflet 地图
     // ═══════════════════════════════════════════
     let currentTileLayer = null;
 
@@ -230,7 +227,7 @@
             leafletMap.removeLayer(currentTileLayer);
         }
         currentTileLayer = L.tileLayer(getMapTileUrl(), {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
             maxZoom: 19,
         }).addTo(leafletMap);
     }
@@ -260,14 +257,18 @@
         updateMapTiles();
         mapMarker = L.marker([lat, lon]).addTo(leafletMap);
 
-        // Fix map rendering issue when container becomes visible
-        setTimeout(() => {
-            leafletMap.invalidateSize();
-        }, 300);
+        setTimeout(() => { leafletMap.invalidateSize(); }, 300);
     }
 
     // ═══════════════════════════════════════════
-    // 渲染结果 Render Results
+    // 双语辅助函数 Bilingual Helper
+    // ═══════════════════════════════════════════
+    function bi(zh, en) {
+        return `${zh} <span class="label-en">${en}</span>`;
+    }
+
+    // ═══════════════════════════════════════════
+    // 渲染结果
     // ═══════════════════════════════════════════
     function renderResults(data) {
         const sources = data.sources;
@@ -284,7 +285,7 @@
         showSection('results');
     }
 
-    // ── 合并最佳数据 Merge Best Data ──
+    // ── 合并最佳数据 ──
     function mergeBestData(abuse, dkly) {
         const a = abuse?.data || {};
         const d = dkly?.data || {};
@@ -309,18 +310,19 @@
         };
     }
 
-    // ── 总览卡片 Overview Cards ──
+    // ── 总览卡片 ──
     function renderOverview(ip, best) {
         const flag = best.country_flag || '';
         const cards = [
-            { label: 'IP 地址 <span class="label-en">IP Address</span>', value: ip, accent: true },
-            { label: '国家 / 地区 <span class="label-en">Country</span>', value: flag + ' ' + (best.country || 'N/A') },
-            { label: '城市 <span class="label-en">City</span>', value: best.city || 'N/A' },
-            { label: '运营商 <span class="label-en">ISP</span>', value: best.isp || 'N/A' },
+            { label: bi('IP 地址', 'IP Address'), value: ip, accent: true },
+            { label: bi('国家/地区', 'Country'), value: flag + ' ' + (best.country || 'N/A') },
+            { label: bi('省/州', 'Region'), value: best.region || 'N/A' },
+            { label: bi('城市', 'City'), value: best.city || 'N/A' },
+            { label: bi('运营商', 'ISP'), value: best.isp || 'N/A' },
             { label: 'ASN', value: best.asn || 'N/A', accent: true },
-            { label: '时区 <span class="label-en">Timezone</span>', value: best.timezone || 'N/A' },
-            { label: '网络类型 <span class="label-en">Network Type</span>', value: formatUsageType(best.usage_type) || 'N/A', highlight: true },
-            { label: 'IP 类型 <span class="label-en">IP Type</span>', value: best.ip_type || 'N/A' },
+            { label: bi('时区', 'Timezone'), value: best.timezone || 'N/A' },
+            { label: bi('网络类型', 'Network Type'), value: formatUsageType(best.usage_type) || 'N/A', highlight: true },
+            { label: bi('IP 类型', 'IP Type'), value: best.ip_type || 'N/A' },
         ];
 
         resultOverview.innerHTML = cards.map(c => `
@@ -348,7 +350,7 @@
         return type;
     }
 
-    // ── 地理位置 & 地址 Location & Address ──
+    // ── 地理位置 & 地址 ──
     function renderLocation(best, abuse, dkly) {
         const d = dkly?.data || {};
         const lat = d.latitude || null;
@@ -361,15 +363,14 @@
 
         locationSection.classList.remove('hidden');
 
-        // 坐标信息 Coordinates
         coordsInfo.innerHTML = `
             <div class="coord-row">
                 <div class="coord-item">
-                    <span class="coord-label">纬度 Latitude</span>
+                    <span class="coord-label">${bi('纬度', 'Latitude')}</span>
                     <span class="coord-value">${lat}</span>
                 </div>
                 <div class="coord-item">
-                    <span class="coord-label">经度 Longitude</span>
+                    <span class="coord-label">${bi('经度', 'Longitude')}</span>
                     <span class="coord-value">${lon}</span>
                 </div>
                 <div class="coord-item">
@@ -380,51 +381,65 @@
             </div>
         `;
 
-        // 初始化地图 Init Map
-        setTimeout(() => {
-            initMap(lat, lon);
-        }, 100);
-
-        // 获取街道地址 Fetch Address
+        setTimeout(() => { initMap(lat, lon); }, 100);
         fetchAddress(lat, lon);
     }
 
     async function fetchAddress(lat, lon) {
-        addressInfo.innerHTML = '<div class="address-loading">正在查询街道地址... Querying address...</div>';
+        addressInfo.innerHTML = `<div class="address-loading">${bi('正在查询街道地址...', 'Querying address...')}</div>`;
 
         try {
             const res = await fetch(`/api/geocode?lat=${lat}&lon=${lon}`);
             const data = await res.json();
 
             if (data.error) {
-                addressInfo.innerHTML = `<div class="address-error">地址查询失败 Address query failed: ${data.error}</div>`;
+                addressInfo.innerHTML = `<div class="address-error">${bi('地址查询失败', 'Address query failed')}: ${data.error}</div>`;
                 return;
             }
 
             const addr = data.address || {};
             const display = data.display_name || '';
 
-            // Add popup to marker
             if (mapMarker && display) {
                 mapMarker.bindPopup(`<div style="font-size:13px;max-width:260px;line-height:1.5">${escapeHtml(display)}</div>`).openPopup();
             }
 
+            // 去重：如果地址信息中的国家/省与 overview 重复则跳过
+            const addrItems = [];
+            if (addr.country) addrItems.push(addrItem(bi('国家', 'Country'), addr.country));
+            if (addr.state || addr.province) {
+                const stateVal = addr.state || addr.province;
+                // 避免与国家名重复
+                if (stateVal !== addr.country) {
+                    addrItems.push(addrItem(bi('省/州', 'State'), stateVal));
+                }
+            }
+            const cityVal = addr.city || addr.town || addr.village;
+            if (cityVal) {
+                // 避免与省/州重复
+                const stateVal = addr.state || addr.province;
+                if (cityVal !== stateVal) {
+                    addrItems.push(addrItem(bi('城市', 'City'), cityVal));
+                }
+            }
+            const districtVal = addr.county || addr.suburb || addr.district;
+            if (districtVal && districtVal !== cityVal) {
+                addrItems.push(addrItem(bi('区/县', 'District'), districtVal));
+            }
+            if (addr.road || addr.street) addrItems.push(addrItem(bi('街道', 'Street'), addr.road || addr.street));
+            if (addr.postcode) addrItems.push(addrItem(bi('邮编', 'Postal'), addr.postcode));
+
             addressInfo.innerHTML = `
                 <div class="address-card address-main">
-                    <div class="address-full-label">完整地址 Full Address</div>
+                    <div class="address-full-label">${bi('完整地址', 'Full Address')}</div>
                     <div class="address-full-value">${escapeHtml(display)}</div>
                 </div>
                 <div class="address-detail-grid">
-                    ${addrItem('国家 Country', addr.country)}
-                    ${addrItem('省/州 State', addr.state || addr.province)}
-                    ${addrItem('城市 City', addr.city || addr.town || addr.village)}
-                    ${addrItem('区/县 District', addr.county || addr.suburb || addr.district)}
-                    ${addrItem('街道 Street', addr.road || addr.street)}
-                    ${addrItem('邮编 Postal', addr.postcode)}
+                    ${addrItems.join('')}
                 </div>
             `;
         } catch (err) {
-            addressInfo.innerHTML = `<div class="address-error">地址查询失败 Address query failed: ${err.message}</div>`;
+            addressInfo.innerHTML = `<div class="address-error">${bi('地址查询失败', 'Address query failed')}: ${err.message}</div>`;
         }
     }
 
@@ -438,7 +453,7 @@
         `;
     }
 
-    // ── 对比表 Comparison Table ──
+    // ── 对比表 ──
     function renderComparisonTable(abuse, dkly) {
         const a = abuse?.success ? abuse.data : null;
         const d = dkly?.success ? dkly.data : null;
@@ -449,30 +464,30 @@
 
         if (activeSources.length === 0) {
             compTableHead.innerHTML = '';
-            compTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:32px;color:var(--text-tertiary)">所有数据源均查询失败 All sources failed</td></tr>';
+            compTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:32px;color:var(--text-tertiary)">${bi('所有数据源均查询失败', 'All sources failed')}</td></tr>`;
             return;
         }
 
         compTableHead.innerHTML = `<tr>
-            <th>字段 Field</th>
+            <th>${bi('字段', 'Field')}</th>
             ${activeSources.map(s => `<th><span class="source-badge ${s.badge}">${s.icon} ${s.label}</span></th>`).join('')}
         </tr>`;
 
         const rows = [
-            { label: 'IP 地址 / IP Address', keys: ['ip'] },
-            { label: '国家 / Country', keys: ['country'] },
-            { label: '国家代码 / Code', keys: ['country_code'] },
-            { label: '地区 / Region', keys: ['region'] },
-            { label: '城市 / City', keys: ['city'] },
+            { label: bi('IP 地址', 'IP Address'), keys: ['ip'] },
+            { label: bi('国家', 'Country'), keys: ['country'] },
+            { label: bi('国家代码', 'Code'), keys: ['country_code'] },
+            { label: bi('地区/省份', 'Region'), keys: ['region'] },
+            { label: bi('城市', 'City'), keys: ['city'] },
             { label: 'ASN', keys: ['asn'] },
-            { label: '组织 / Organization', keys: ['organization', 'isp'] },
-            { label: '主机名 / Hostname', keys: ['hostname'] },
-            { label: '时区 / Timezone', keys: ['timezone'] },
-            { label: '网络类型 / Network', keys: ['usage_type', 'connection_type'] },
-            { label: '域名 / Domain', keys: ['domain'] },
-            { label: '邮编 / Postal', keys: ['postal'] },
-            { label: '大洲 / Continent', keys: ['continent'] },
-            { label: 'IP 类型 / Type', keys: ['ip_type'] },
+            { label: bi('组织/ISP', 'Organization'), keys: ['organization', 'isp'] },
+            { label: bi('主机名', 'Hostname'), keys: ['hostname'] },
+            { label: bi('时区', 'Timezone'), keys: ['timezone'] },
+            { label: bi('网络类型', 'Network'), keys: ['usage_type', 'connection_type'] },
+            { label: bi('域名', 'Domain'), keys: ['domain'] },
+            { label: bi('邮编', 'Postal'), keys: ['postal'] },
+            { label: bi('大洲', 'Continent'), keys: ['continent'] },
+            { label: bi('IP 类型', 'Type'), keys: ['ip_type'] },
         ];
 
         const sourceDataMap = {};
@@ -506,43 +521,42 @@
             return `<tr><td>${row.label}</td>${cells}</tr>`;
         }).filter(Boolean).join('');
 
-        // 失败数据源提示 Failed sources warning
         const failed = [];
-        if (!abuse?.success) failed.push(`AbuseIPDB: ${abuse?.error || '未知 Unknown'}`);
-        if (!dkly?.success) failed.push(`dklyIPdb: ${dkly?.error || '未知 Unknown'}`);
+        if (!abuse?.success) failed.push(`AbuseIPDB: ${abuse?.error || bi('未知', 'Unknown')}`);
+        if (!dkly?.success) failed.push(`dklyIPdb: ${dkly?.error || bi('未知', 'Unknown')}`);
 
         if (failed.length > 0) {
             compTableBody.innerHTML += `<tr>
                 <td colspan="${activeSources.length + 1}" style="padding:12px 24px;font-size:0.82rem;color:var(--status-warning)">
-                    ⚠️ 部分数据源不可用 Some sources unavailable: ${failed.join(' | ')}
+                    ⚠️ ${bi('部分数据源不可用', 'Some sources unavailable')}: ${failed.join(' | ')}
                 </td>
             </tr>`;
         }
     }
 
-    // ── 安全检测 Security Detection ──
+    // ── 安全检测 ──
     function renderSecurity(abuse, dkly) {
         const d = dkly?.success ? dkly.data : {};
         const a = abuse?.success ? abuse.data : {};
 
         const items = [
             { label: 'VPN', value: d.is_vpn, source: d.is_vpn != null ? 'dklyIPdb' : null },
-            { label: '代理 Proxy', value: d.is_proxy, source: d.is_proxy != null ? 'dklyIPdb' : null },
+            { label: bi('代理', 'Proxy'), value: d.is_proxy, source: d.is_proxy != null ? 'dklyIPdb' : null },
             {
                 label: 'Tor', value: d.is_tor ?? a.is_tor,
                 source: d.is_tor != null ? 'dklyIPdb' : (a.is_tor != null ? 'AbuseIPDB' : null)
             },
             {
-                label: '威胁 Threat', value: d.is_threat ?? a.is_threat,
+                label: bi('威胁', 'Threat'), value: d.is_threat ?? a.is_threat,
                 source: d.is_threat != null ? 'dklyIPdb' : (a.is_threat != null ? 'AbuseIPDB' : null)
             },
         ];
 
         if (a.abuse_score !== undefined) {
-            items.push({ label: '滥用评分 Abuse Score', value: a.abuse_score, source: 'AbuseIPDB', isScore: true });
+            items.push({ label: bi('滥用评分', 'Abuse Score'), value: a.abuse_score, source: 'AbuseIPDB', isScore: true });
         }
         if (a.total_reports !== undefined) {
-            items.push({ label: '举报次数 Reports', value: a.total_reports, source: 'AbuseIPDB', isCount: true });
+            items.push({ label: bi('举报次数', 'Reports'), value: a.total_reports, source: 'AbuseIPDB', isCount: true });
         }
 
         securityGrid.innerHTML = items.map(item => {
@@ -557,19 +571,19 @@
                 const count = parseInt(item.value);
                 statusClass = count > 10 ? 'danger' : count > 0 ? 'unknown' : 'safe';
                 icon = count > 10 ? '📢' : count > 0 ? '📝' : '🔇';
-                displayValue = count + ' 次 times';
+                displayValue = count + ` ${bi('次', 'times')}`;
             } else if (item.value === null || item.value === undefined) {
                 statusClass = 'unknown';
                 icon = '❓';
-                displayValue = '暂无数据 N/A';
+                displayValue = bi('暂无数据', 'N/A');
             } else if (item.value === true) {
                 statusClass = 'danger';
                 icon = '🚫';
-                displayValue = '是 Yes';
+                displayValue = bi('是', 'Yes');
             } else {
                 statusClass = 'safe';
                 icon = '✅';
-                displayValue = '否 No';
+                displayValue = bi('否', 'No');
             }
 
             return `
@@ -577,14 +591,14 @@
                     <div class="security-status ${statusClass}">${icon}</div>
                     <div class="security-label">${item.label}</div>
                     <div class="security-value ${statusClass}">${displayValue}</div>
-                    ${item.source ? `<div style="font-size:0.7rem;color:var(--text-tertiary);margin-top:4px">来源 Source: ${item.source}</div>` : ''}
+                    ${item.source ? `<div style="font-size:0.7rem;color:var(--text-tertiary);margin-top:4px">${bi('来源', 'Source')}: ${item.source}</div>` : ''}
                 </div>
             `;
         }).join('');
     }
 
     // ═══════════════════════════════════════════
-    // 工具 Utilities
+    // 工具
     // ═══════════════════════════════════════════
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -593,7 +607,7 @@
     }
 
     // ═══════════════════════════════════════════
-    // 初始化 Initialize
+    // 初始化
     // ═══════════════════════════════════════════
     function init() {
         initTheme();

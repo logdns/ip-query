@@ -7,7 +7,7 @@ const fs = require('fs');
 const settings = require('./lib/settings');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3008;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -63,12 +63,17 @@ function nextAbuseKey() {
 // 工具函数
 // ═══════════════════════════════════════════
 function getClientIP(req) {
-    return (
+    let ip = (
         req.headers['x-real-ip'] ||
         req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
         req.connection?.remoteAddress ||
         req.ip
     );
+    // Strip IPv4-mapped IPv6 prefix
+    if (ip && ip.startsWith('::ffff:')) {
+        ip = ip.substring(7);
+    }
+    return ip;
 }
 
 function isValidIP(ip) {
