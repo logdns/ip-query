@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{SEO_TITLE}}</title>
+    <meta name="description" content="{{SEO_DESC}}">
+    <meta name="keywords" content="{{SEO_KEYWORDS}}">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/inter-ui@4.1.0/inter.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body data-theme="dark">
+
+    <!-- 主题切换 Theme Toggle -->
+    <button class="theme-toggle" id="themeToggle" title="切换主题 / Toggle Theme">
+        <span class="theme-icon">🌙</span>
+    </button>
+
+    <!-- 背景粒子 Background Particles -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <div class="app-container">
+        <!-- 头部 Header -->
+        <header class="hero">
+            <div class="hero-glow"></div>
+            <h1 class="hero-title">
+                <span class="hero-icon">🌐</span>
+                IP 信息查询系统
+            </h1>
+            <p class="hero-subtitle">多数据源聚合查询 · 实时对比分析</p>
+            <p class="hero-subtitle-en">Multi-source Aggregation · Real-time Comparison</p>
+        </header>
+
+        <!-- 自动检测的 IP + 浏览器标识 Auto Detect IP & Browser -->
+        <section class="my-ip-section" id="myIpSection">
+            <div class="my-ip-card">
+                <div class="detect-grid">
+                    <!-- IP 信息 -->
+                    <div class="detect-block">
+                        <div class="detect-label">您的公网 IP 地址 <span class="label-en">Your Public IP</span></div>
+                        <div class="my-ip-value" id="myIpValue">
+                            <span class="loading-dots">检测中<span>.</span><span>.</span><span>.</span></span>
+                        </div>
+                    </div>
+                    <!-- 浏览器标识 -->
+                    <div class="detect-block">
+                        <div class="detect-label">浏览器标识 <span class="label-en">Browser Info</span></div>
+                        <div class="browser-info" id="browserInfo">
+                            <span class="loading-dots">检测中<span>.</span><span>.</span><span>.</span></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 浏览器详情折叠 -->
+                <div class="ua-detail hidden" id="uaDetail">
+                    <div class="ua-raw" id="uaRaw"></div>
+                </div>
+                <div class="detect-actions">
+                    <button class="btn-query-self" id="btnQuerySelf" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        查询我的 IP 详情 <span class="btn-en">Query My IP</span>
+                    </button>
+                    <button class="btn-ua-toggle" id="btnUaToggle" title="展开 User-Agent 详情">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M6 9l6 6 6-6" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 搜索框 Search Box -->
+        <section class="search-section">
+            <div class="search-box">
+                <div class="search-input-wrap">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="ipInput" class="search-input"
+                        placeholder="输入 IP 地址 / Enter IP Address, e.g. 8.8.8.8" autocomplete="off" spellcheck="false">
+                    <button class="btn-clear" id="btnClear" title="清除 Clear">✕</button>
+                </div>
+                <button class="btn-search" id="btnSearch">
+                    <span>查询 Query</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M5 12h14m-7-7l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="search-hint">支持 IPv4 和 IPv6 地址 / Supports IPv4 & IPv6</div>
+        </section>
+
+        <!-- 加载状态 Loading -->
+        <section class="loading-section hidden" id="loadingSection">
+            <div class="loader">
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+            </div>
+            <p class="loading-text">正在从多个数据源获取信息... <span class="text-en">Fetching from multiple sources...</span></p>
+        </section>
+
+        <!-- 错误提示 Error -->
+        <section class="error-section hidden" id="errorSection">
+            <div class="error-card">
+                <span class="error-icon">⚠️</span>
+                <p class="error-text" id="errorText"></p>
+            </div>
+        </section>
+
+        <!-- 查询结果 Results -->
+        <section class="results-section hidden" id="resultsSection">
+            <!-- IP 总览 Overview -->
+            <div class="result-overview" id="resultOverview"></div>
+
+            <!-- 地理位置 & 街道地址 (合并) Location & Address -->
+            <div class="location-section hidden" id="locationSection">
+                <h2 class="section-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                        <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    地理位置 & 街道地址 <span class="section-title-en">Location & Address</span>
+                    <span class="section-badge">OpenStreetMap</span>
+                </h2>
+                <div class="location-grid">
+                    <!-- 地图容器 Map Container -->
+                    <div class="map-container">
+                        <div id="leafletMap" class="leaflet-map"></div>
+                    </div>
+                    <!-- 地址信息 Address Info -->
+                    <div class="location-info">
+                        <div class="coords-info" id="coordsInfo"></div>
+                        <div class="address-info" id="addressInfo">
+                            <div class="address-loading">正在查询地址... Querying address...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多源对比表 Multi-source Comparison -->
+            <div class="comparison-section">
+                <h2 class="section-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+                    </svg>
+                    多源数据对比 <span class="section-title-en">Multi-source Comparison</span>
+                </h2>
+                <div class="comparison-table-wrap">
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead id="compTableHead"></thead>
+                        <tbody id="compTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 安全检测 Security Detection -->
+            <div class="security-section" id="securitySection">
+                <h2 class="section-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    安全检测 <span class="section-title-en">Security Detection</span>
+                </h2>
+                <div class="security-grid" id="securityGrid"></div>
+            </div>
+        </section>
+
+        <!-- 页脚 Footer -->
+        <footer class="site-footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    Ⓒ <a href="https://xinai.de" target="_blank">xinai.de</a>
+                    <span class="footer-kawaii">Thanks♪(･ω･)ﾉ</span>
+                </div>
+                <div class="footer-links">
+                    <span class="footer-tag">Freedom Services Enjoy!</span>
+                    <a href="https://github.com/logdns/ip-query" target="_blank" class="footer-github">
+                        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                            <path fill-rule="evenodd"
+                                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+
+</html>

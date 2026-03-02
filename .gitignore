@@ -1,0 +1,5 @@
+# .env 文件不提交到版本控制
+.env
+node_modules/
+data/settings.json
+.DS_Store
