@@ -10,6 +10,22 @@ const app = express();
 const PORT = process.env.PORT || 3008;
 
 app.use(express.json());
+
+// ── SEO 模板渲染: 替换 index.html 中的 SEO 占位符 ──
+app.get(['/', '/index.html'], (req, res) => {
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    fs.readFile(htmlPath, 'utf8', (err, html) => {
+        if (err) return res.status(500).send('Internal Server Error');
+        const seo = settings.get().seo || {};
+        const rendered = html
+            .replace('{{SEO_TITLE}}', seo.title || 'IP 信息查询系统')
+            .replace('{{SEO_DESC}}', seo.description || '多数据源 IP 地理位置查询系统')
+            .replace('{{SEO_KEYWORDS}}', seo.keywords || 'IP查询,IP地址,地理位置,GeoIP');
+        res.set('Content-Type', 'text/html');
+        res.send(rendered);
+    });
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ═══════════════════════════════════════════

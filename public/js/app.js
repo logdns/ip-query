@@ -378,7 +378,7 @@
             }
 
             const addr = data.address || {};
-            const display = data.display_name || '';
+            const display = cleanAddr(data.display_name || '');
 
             if (mapMarker && display) {
                 mapMarker.bindPopup(`<div style="font-size:13px;max-width:260px;line-height:1.5">${escapeHtml(display)}</div>`).openPopup();
@@ -389,6 +389,7 @@
             const seen = new Set();
 
             function addUnique(label, value) {
+                value = cleanAddr(value);
                 if (!value || seen.has(value)) return;
                 seen.add(value);
                 items.push(addrItem(label, value));
@@ -411,6 +412,20 @@
         } catch (err) {
             addressInfo.innerHTML = `<div class="address-error">${t('地址查询失败', 'Address query failed')}: ${err.message}</div>`;
         }
+    }
+
+    // 清理 Nominatim 多语言地址 (取分号/斜杠分隔的第一个值)
+    function cleanAddr(str) {
+        if (!str) return '';
+        // 先按逗号分段，每段内取第一个语言变体
+        return str.split(',').map(part => {
+            part = part.trim();
+            // 处理分号分隔 (如 "美国;美國")
+            if (part.includes(';')) part = part.split(';')[0].trim();
+            // 处理斜杠分隔 (如 "弗吉尼亚州 / 維吉尼亞州")
+            if (part.includes(' / ')) part = part.split(' / ')[0].trim();
+            return part;
+        }).join(', ');
     }
 
     function addrItem(label, value) {
