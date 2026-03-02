@@ -76,6 +76,35 @@ function getClientIP(req) {
     return ip;
 }
 
+function isPrivateIP(ip) {
+    if (!ip) return true;
+    // Loopback
+    if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') return true;
+    // Private IPv4 ranges
+    if (/^10\./.test(ip)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+    if (/^192\.168\./.test(ip)) return true;
+    // Link-local
+    if (/^169\.254\./.test(ip)) return true;
+    return false;
+}
+
+async function getPublicIP() {
+    const services = [
+        'https://api.ipify.org?format=json',
+        'https://api.myip.com',
+    ];
+    for (const url of services) {
+        try {
+            const res = await fetch(url, { timeout: 5000 });
+            if (!res.ok) continue;
+            const data = await res.json();
+            return data.ip || null;
+        } catch { continue; }
+    }
+    return null;
+}
+
 function isValidIP(ip) {
     const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
     const ipv6 = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
@@ -190,8 +219,14 @@ async function reverseGeocode(lat, lon) {
 // ═══════════════════════════════════════════
 // API: 获取访客 IP
 // ═══════════════════════════════════════════
-app.get('/api/myip', (req, res) => {
-    res.json({ ip: getClientIP(req) });
+app.get('/api/myip', async (req, res) => {
+    let ip = getClientIP(req);
+    // 如果是私有/回环地址，尝试通过外部服务获取真实公网 IP
+    if (isPrivateIP(ip)) {
+        const publicIP = await getPublicIP();
+        if (publicIP) ip = publicIP;
+    }
+    res.json({ ip });
 });
 
 // ═══════════════════════════════════════════
