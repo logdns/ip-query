@@ -199,14 +199,58 @@ body::before {
     }
 }
 
-/* ── Theme Toggle ── */
-.theme-toggle {
+/* ── Language Toggle (中/EN) ── */
+[data-lang="zh"] .en {
+    display: none !important;
+}
+
+[data-lang="en"] .zh {
+    display: none !important;
+}
+
+/* ── Top Controls (Lang + Theme) ── */
+.top-controls {
     position: fixed;
     top: var(--space-lg);
     right: var(--space-lg);
     z-index: 1000;
-    width: 48px;
-    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.lang-toggle {
+    height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    transition: all var(--duration-normal) var(--ease-out);
+    font-family: var(--font-sans);
+}
+
+.lang-toggle:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-focus);
+}
+
+.lang-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+}
+
+.theme-toggle {
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-full);
     background: var(--bg-card);
@@ -225,7 +269,7 @@ body::before {
 }
 
 .theme-icon {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1;
 }
 
@@ -298,43 +342,6 @@ body::before {
     font-size: 1.1rem;
     font-weight: 400;
     letter-spacing: 0.02em;
-}
-
-.hero-subtitle-en {
-    margin-top: var(--space-xs);
-    color: var(--text-tertiary);
-    font-size: 0.9rem;
-    font-weight: 300;
-    letter-spacing: 0.03em;
-}
-
-/* ── Bilingual Label ── */
-.label-en {
-    font-size: 0.72em;
-    color: var(--text-tertiary);
-    font-weight: 400;
-    margin-left: 4px;
-    opacity: 0.7;
-}
-
-.btn-en {
-    font-size: 0.82em;
-    opacity: 0.7;
-    margin-left: 4px;
-}
-
-.text-en {
-    font-size: 0.88em;
-    color: var(--text-tertiary);
-    opacity: 0.7;
-}
-
-.section-title-en {
-    font-size: 0.65em;
-    color: var(--text-tertiary);
-    font-weight: 400;
-    margin-left: 6px;
-    opacity: 0.7;
 }
 
 /* ── My IP Section ── */
@@ -1303,11 +1310,23 @@ body::before {
         justify-content: center;
     }
 
-    .theme-toggle {
+    .top-controls {
         top: var(--space-md);
         right: var(--space-md);
-        width: 40px;
-        height: 40px;
+    }
+
+    .lang-toggle {
+        height: 36px;
+        padding: 0 10px;
+    }
+
+    .lang-label {
+        font-size: 0.75rem;
+    }
+
+    .theme-toggle {
+        width: 36px;
+        height: 36px;
     }
 
     .detect-grid {
