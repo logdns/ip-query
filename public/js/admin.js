@@ -141,7 +141,12 @@
         // API Keys
         const abuseKeys = data.apiKeys?.abuseipdb || [];
         $('#apiAbuseKeys').value = abuseKeys.join('\n');
-        $('#apiDklyKey').value = data.apiKeys?.dkly || '';
+        $('#apiIplocateKey').value = data.apiKeys?.iplocate || '';
+
+        // API Endpoints
+        $('#endpointAbuseipdb').value = data.apiEndpoints?.abuseipdb || '';
+        $('#endpointIplocate').value = data.apiEndpoints?.iplocate || '';
+        $('#endpointNominatim').value = data.apiEndpoints?.nominatim || '';
 
         // Map
         $('#nominatimEmail').value = data.apiKeys?.nominatimEmail || '';
@@ -162,8 +167,13 @@
             },
             apiKeys: {
                 abuseipdb: $('#apiAbuseKeys').value.split('\n').map(s => s.trim()).filter(Boolean),
-                dkly: $('#apiDklyKey').value.trim(),
+                iplocate: $('#apiIplocateKey').value.trim(),
                 nominatimEmail: $('#nominatimEmail').value.trim(),
+            },
+            apiEndpoints: {
+                abuseipdb: $('#endpointAbuseipdb').value.trim(),
+                iplocate: $('#endpointIplocate').value.trim(),
+                nominatim: $('#endpointNominatim').value.trim(),
             },
             admin: {
                 password: $('#adminPassword').value.trim(),

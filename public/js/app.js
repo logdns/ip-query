@@ -264,19 +264,19 @@
     // ═══════════════════════════════════════════
     function renderResults(data) {
         const abuse = data.sources.abuseipdb;
-        const dkly = data.sources.dkly;
-        const best = mergeBestData(abuse, dkly);
+        const iplocate = data.sources.iplocate;
+        const best = mergeBestData(abuse, iplocate);
 
         renderOverview(data.ip, best);
-        renderComparisonTable(abuse, dkly);
-        renderSecurity(abuse, dkly);
-        renderLocation(best, dkly);
+        renderComparisonTable(abuse, iplocate);
+        renderSecurity(abuse, iplocate);
+        renderLocation(best, iplocate);
         showSection('results');
     }
 
-    function mergeBestData(abuse, dkly) {
+    function mergeBestData(abuse, iplocate) {
         const a = abuse?.data || {};
-        const d = dkly?.data || {};
+        const d = iplocate?.data || {};
         return {
             ip: d.ip || a.ip,
             country: d.country || a.country,
@@ -337,8 +337,8 @@
     }
 
     // ── 地理位置 & 地址 ──
-    function renderLocation(best, dkly) {
-        const d = dkly?.data || {};
+    function renderLocation(best, iplocate) {
+        const d = iplocate?.data || {};
         const lat = d.latitude || null;
         const lon = d.longitude || null;
 
@@ -433,13 +433,13 @@
     }
 
     // ── 对比表 ──
-    function renderComparisonTable(abuse, dkly) {
+    function renderComparisonTable(abuse, iplocate) {
         const a = abuse?.success ? abuse.data : null;
-        const d = dkly?.success ? dkly.data : null;
+        const d = iplocate?.success ? iplocate.data : null;
 
         const activeSources = [];
         if (a) activeSources.push({ key: 'abuse', label: 'AbuseIPDB', badge: 'badge-abuse', icon: '🛡️' });
-        if (d) activeSources.push({ key: 'dkly', label: 'dklyIPdb', badge: 'badge-dkly', icon: '📡' });
+        if (d) activeSources.push({ key: 'iplocate', label: 'iplocate.io', badge: 'badge-dkly', icon: '📡' });
 
         if (!activeSources.length) {
             compTableHead.innerHTML = '';
@@ -468,7 +468,7 @@
 
         const sourceDataMap = {};
         if (a) sourceDataMap.abuse = a;
-        if (d) sourceDataMap.dkly = d;
+        if (d) sourceDataMap.iplocate = d;
 
         compTableBody.innerHTML = rows.map(row => {
             const values = activeSources.map(s => {
@@ -488,22 +488,22 @@
 
         const failed = [];
         if (!abuse?.success) failed.push(`AbuseIPDB: ${abuse?.error || t('未知', 'Unknown')}`);
-        if (!dkly?.success) failed.push(`dklyIPdb: ${dkly?.error || t('未知', 'Unknown')}`);
+        if (!iplocate?.success) failed.push(`iplocate: ${iplocate?.error || t('未知', 'Unknown')}`);
         if (failed.length) {
             compTableBody.innerHTML += `<tr><td colspan="${activeSources.length + 1}" style="padding:12px 24px;font-size:0.82rem;color:var(--status-warning)">⚠️ ${t('部分数据源不可用', 'Some sources unavailable')}: ${failed.join(' | ')}</td></tr>`;
         }
     }
 
     // ── 安全检测 ──
-    function renderSecurity(abuse, dkly) {
-        const d = dkly?.success ? dkly.data : {};
+    function renderSecurity(abuse, iplocate) {
+        const d = iplocate?.success ? iplocate.data : {};
         const a = abuse?.success ? abuse.data : {};
 
         const items = [
-            { label: 'VPN', value: d.is_vpn, source: d.is_vpn != null ? 'dklyIPdb' : null },
-            { label: t('代理', 'Proxy'), value: d.is_proxy, source: d.is_proxy != null ? 'dklyIPdb' : null },
-            { label: 'Tor', value: d.is_tor ?? a.is_tor, source: d.is_tor != null ? 'dklyIPdb' : (a.is_tor != null ? 'AbuseIPDB' : null) },
-            { label: t('威胁', 'Threat'), value: d.is_threat ?? a.is_threat, source: d.is_threat != null ? 'dklyIPdb' : (a.is_threat != null ? 'AbuseIPDB' : null) },
+            { label: 'VPN', value: d.is_vpn, source: d.is_vpn != null ? 'iplocate' : null },
+            { label: t('代理', 'Proxy'), value: d.is_proxy, source: d.is_proxy != null ? 'iplocate' : null },
+            { label: 'Tor', value: d.is_tor ?? a.is_tor, source: d.is_tor != null ? 'iplocate' : (a.is_tor != null ? 'AbuseIPDB' : null) },
+            { label: t('威胁', 'Threat'), value: d.is_threat ?? a.is_threat, source: d.is_threat != null ? 'iplocate' : (a.is_threat != null ? 'AbuseIPDB' : null) },
         ];
         if (a.abuse_score !== undefined) items.push({ label: t('滥用评分', 'Abuse Score'), value: a.abuse_score, source: 'AbuseIPDB', isScore: true });
         if (a.total_reports !== undefined) items.push({ label: t('举报次数', 'Reports'), value: a.total_reports, source: 'AbuseIPDB', isCount: true });

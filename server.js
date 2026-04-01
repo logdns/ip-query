@@ -62,8 +62,8 @@ function requireAdmin(req, res, next) {
 function getAbuseKeys() {
     return settings.get().apiKeys?.abuseipdb || [];
 }
-function getDklyKey() {
-    return settings.get().apiKeys?.dkly || '';
+function getIplocateKey() {
+    return settings.get().apiKeys?.iplocate || '';
 }
 
 let abuseKeyIndex = 0;
@@ -137,7 +137,9 @@ async function fetchAbuseIPDB(ip) {
     const apiKey = nextAbuseKey();
     if (!apiKey) return { source: 'AbuseIPDB', success: false, error: 'No API key', data: null };
     try {
-        const res = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&verbose`, {
+        const s = settings.get();
+        const baseUrl = s.apiEndpoints?.abuseipdb || 'https://api.abuseipdb.com/api/v2/check';
+        const res = await fetch(`${baseUrl}?ipAddress=${encodeURIComponent(ip)}&verbose`, {
             headers: { 'Key': apiKey, 'Accept': 'application/json' }, timeout: 8000
         });
         if (!res.ok) throw new Error(`AbuseIPDB HTTP ${res.status}`);
@@ -165,51 +167,58 @@ async function fetchAbuseIPDB(ip) {
 }
 
 // ═══════════════════════════════════════════
-// 数据源2: dklyIPdatabase
+// 数据源2: iplocate.io
 // ═══════════════════════════════════════════
-async function fetchDkly(ip) {
-    const key = getDklyKey();
-    if (!key) return { source: 'dklyIPdatabase', success: false, error: 'No API key', data: null };
+async function fetchIplocate(ip) {
+    const key = getIplocateKey();
+    if (!key) return { source: 'iplocate', success: false, error: 'No API key', data: null };
     try {
+        const s = settings.get();
+        const baseUrl = s.apiEndpoints?.iplocate || 'https://iplocate.io/api/lookup';
         const url = ip
-            ? `https://ipinfo.dkly.net/api/?key=${encodeURIComponent(key)}&ip=${encodeURIComponent(ip)}`
-            : `https://ipinfo.dkly.net/api/?key=${encodeURIComponent(key)}`;
+            ? `${baseUrl}/${encodeURIComponent(ip)}?apikey=${encodeURIComponent(key)}`
+            : `${baseUrl}?apikey=${encodeURIComponent(key)}`;
         const res = await fetch(url, { timeout: 8000 });
-        if (!res.ok) throw new Error(`dklyIPdatabase HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`iplocate HTTP ${res.status}`);
         const d = await res.json();
-        if (d.code) throw new Error(d.message || d.code);
+        if (d.error) throw new Error(d.error);
         return {
-            source: 'dklyIPdatabase', success: true,
+            source: 'iplocate', success: true,
             data: {
                 ip: d.ip || ip,
-                country: d.location?.country?.name || null,
-                country_code: d.location?.country?.code || null,
-                country_flag: d.location?.country?.flag?.emoji || null,
-                region: d.location?.region?.name || null,
-                city: d.location?.city || null,
-                latitude: d.location?.latitude || null,
-                longitude: d.location?.longitude || null,
-                timezone: d.time_zone?.id || null,
-                timezone_abbr: d.time_zone?.abbreviation || null,
-                asn: d.connection?.asn || null,
-                organization: d.connection?.organization || null,
-                connection_type: d.connection?.type || null,
-                isp: d.connection?.organization || null,
-                hostname: d.hostname || null,
-                ip_type: d.type || null,
-                is_vpn: d.security?.is_vpn ?? null,
-                is_proxy: d.security?.is_proxy ?? null,
-                is_tor: d.security?.is_tor ?? null,
-                is_threat: d.security?.is_threat ?? null,
-                continent: d.location?.continent?.name || null,
-                continent_code: d.location?.continent?.code || null,
-                postal: d.location?.postal || null,
-                domain: null,
-                usage_type: d.connection?.type || null,
+                country: d.country || null,
+                country_code: d.country_code || null,
+                country_flag: null,
+                region: d.subdivision || null,
+                city: d.city || null,
+                latitude: d.latitude || null,
+                longitude: d.longitude || null,
+                timezone: d.time_zone || null,
+                timezone_abbr: null,
+                asn: d.asn?.asn || null,
+                organization: d.asn?.name || null,
+                connection_type: d.asn?.type || null,
+                isp: d.company?.name || d.asn?.name || null,
+                hostname: null,
+                ip_type: null,
+                is_vpn: d.privacy?.is_vpn ?? null,
+                is_proxy: d.privacy?.is_proxy ?? null,
+                is_tor: d.privacy?.is_tor ?? null,
+                is_threat: d.privacy?.is_abuser ?? null,
+                continent: d.continent || null,
+                continent_code: null,
+                postal: d.postal_code || null,
+                domain: d.asn?.domain || null,
+                usage_type: d.asn?.type || null,
+                is_hosting: d.privacy?.is_hosting ?? null,
+                is_anonymous: d.privacy?.is_anonymous ?? null,
+                company_name: d.company?.name || null,
+                company_domain: d.company?.domain || null,
+                hosting_provider: d.hosting?.provider || null,
             }
         };
     } catch (err) {
-        return { source: 'dklyIPdatabase', success: false, error: err.message, data: null };
+        return { source: 'iplocate', success: false, error: err.message, data: null };
     }
 }
 
@@ -217,13 +226,15 @@ async function fetchDkly(ip) {
 // Nominatim 反向地理编码
 // ═══════════════════════════════════════════
 async function reverseGeocode(lat, lon) {
-    const email = settings.get().apiKeys?.nominatimEmail || '';
+    const s = settings.get();
+    const email = s.apiKeys?.nominatimEmail || '';
+    const baseUrl = s.apiEndpoints?.nominatim || 'https://nominatim.openstreetmap.org/reverse';
     const headers = {
         'User-Agent': `IPQuerySystem/1.0 ${email ? '(' + email + ')' : ''}`,
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.5',
     };
     try {
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=14&addressdetails=1`;
+        const url = `${baseUrl}?lat=${lat}&lon=${lon}&format=json&zoom=14&addressdetails=1`;
         const res = await fetch(url, { headers, timeout: 8000 });
         if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
         return await res.json();
@@ -294,10 +305,10 @@ app.get('/api/query', async (req, res) => {
     if (!isValidIP(ip)) return res.status(400).json({ error: true, message: 'IP 地址格式无效' });
 
     try {
-        const [abuse, dkly] = await Promise.all([
-            fetchAbuseIPDB(ip), fetchDkly(ip),
+        const [abuse, iplocate] = await Promise.all([
+            fetchAbuseIPDB(ip), fetchIplocate(ip),
         ]);
-        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, dkly } });
+        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, iplocate } });
     } catch (err) {
         res.status(500).json({ error: true, message: '查询失败: ' + err.message });
     }
@@ -395,10 +406,10 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     const s = settings.get();
     const abuseCount = s.apiKeys?.abuseipdb?.length || 0;
-    const hasDkly = !!s.apiKeys?.dkly;
+    const hasIplocate = !!s.apiKeys?.iplocate;
     console.log(`🚀 IP Query Server running at http://0.0.0.0:${PORT}`);
     console.log(`   AbuseIPDB keys: ${abuseCount} loaded`);
-    console.log(`   dklyIPdatabase: ${hasDkly ? '✅ configured' : '❌ not configured'}`);
+    console.log(`   iplocate.io:    ${hasIplocate ? '✅ configured' : '❌ not configured'}`);
     console.log(`   Admin panel:    http://0.0.0.0:${PORT}/admin`);
     console.log(`   Admin password: ${s.admin?.password || 'admin123'}`);
 });

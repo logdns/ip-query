@@ -72,6 +72,13 @@
                     </svg>
                     API 密钥
                 </button>
+                <button class="tab-btn" data-tab="endpoints">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                    </svg>
+                    接口地址
+                </button>
                 <button class="tab-btn" data-tab="map">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
@@ -132,17 +139,76 @@
                                 placeholder="每行一个 API Key"></textarea>
                         </div>
                     </div>
-                    <!-- dklyIPdatabase -->
+                    <!-- iplocate.io -->
                     <div class="api-section">
                         <div class="api-section-header">
                             <h3 class="api-section-title">
                                 <span class="api-dot dkly"></span>
-                                dklyIPdatabase
+                                iplocate.io
                             </h3>
                         </div>
                         <div class="form-group">
-                            <input type="text" id="apiDklyKey" class="form-input form-mono"
-                                placeholder="dklyIPdatabase API Key">
+                            <input type="text" id="apiIplocateKey" class="form-input form-mono"
+                                placeholder="iplocate.io API Key">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 接口地址 -->
+            <section class="tab-panel" id="panel-endpoints">
+                <div class="panel-header">
+                    <h2 class="panel-title">API 接口地址配置</h2>
+                    <p class="panel-desc">自定义各数据源的 API 端点地址。修改后实时生效，方便接入自定义代理或新的数据源。</p>
+                </div>
+                <div class="panel-body">
+                    <div class="info-card">
+                        <div class="info-icon">💡</div>
+                        <div class="info-text">
+                            如果数据源更换了接口地址，可在此处修改。留空则使用默认地址。
+                            <br>新增数据源接口请在此处配置地址，并在"API 密钥"页配置对应的密钥。
+                        </div>
+                    </div>
+                    <!-- AbuseIPDB 端点 -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <h3 class="api-section-title">
+                                <span class="api-dot abuse"></span>
+                                AbuseIPDB 接口地址
+                            </h3>
+                        </div>
+                        <div class="form-group">
+                            <input type="url" id="endpointAbuseipdb" class="form-input form-mono"
+                                placeholder="https://api.abuseipdb.com/api/v2/check">
+                            <div class="form-hint">默认: https://api.abuseipdb.com/api/v2/check</div>
+                        </div>
+                    </div>
+                    <!-- iplocate.io 端点 -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <h3 class="api-section-title">
+                                <span class="api-dot dkly"></span>
+                                iplocate.io 接口地址
+                            </h3>
+                        </div>
+                        <div class="form-group">
+                            <input type="url" id="endpointIplocate" class="form-input form-mono"
+                                placeholder="https://iplocate.io/api/lookup">
+                            <div class="form-hint">默认: https://iplocate.io/api/lookup</div>
+                        </div>
+                    </div>
+                    <!-- Nominatim 端点 -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <h3 class="api-section-title">
+                                <span class="api-dot nominatim"></span>
+                                Nominatim 接口地址
+                            </h3>
+                        </div>
+                        <div class="form-group">
+                            <input type="url" id="endpointNominatim" class="form-input form-mono"
+                                placeholder="https://nominatim.openstreetmap.org/reverse">
+                            <div class="form-hint">默认: https://nominatim.openstreetmap.org/reverse</div>
                         </div>
                     </div>
                 </div>
