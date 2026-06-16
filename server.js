@@ -542,8 +542,22 @@ app.get('/api/admin/update/check', requireAdmin, async (req, res) => {
             });
         }
 
-        // 远端 Release 版本号高于当前版本 → 有更新
-        const cmp = compareVersion(release.tag, cur.version);
+        // 判断是否有更新:
+        // - 当前停在某个语义化 tag 上 → 比较版本号, 远端更高才提示
+        // - 当前不在任何 Release tag 上 (裸 commit / 旧部署) → 只要本地 HEAD 不是该 tag 即提示
+        const curVer = parseVersion(cur.version);
+        let hasUpdate;
+        if (curVer) {
+            hasUpdate = compareVersion(release.tag, cur.version) > 0;
+        } else {
+            // 当前 HEAD 是否就是该 Release tag 指向的提交?
+            let onTag = false;
+            try {
+                const { stdout: tagHash } = await git(['rev-parse', '--short', `refs/tags/${release.tag}`]);
+                onTag = tagHash === cur.hash;
+            } catch { onTag = false; }
+            hasUpdate = !onTag;
+        }
 
         res.json({
             success: true,
@@ -556,7 +570,7 @@ app.get('/api/admin/update/check', requireAdmin, async (req, res) => {
                 publishedAt: release.publishedAt,
                 htmlUrl: release.htmlUrl,
             },
-            hasUpdate: cmp > 0,
+            hasUpdate,
         });
     } catch (err) {
         res.status(500).json({ error: true, message: '检查更新失败: ' + (err.stderr || err.message) });
