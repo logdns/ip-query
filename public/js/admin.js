@@ -275,37 +275,68 @@
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+    // 极简 Markdown 渲染 (Release 正文): 标题/列表/粗体/代码/链接
+    function renderMarkdown(md) {
+        const esc = escapeHtml(md);
+        return esc
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/^### (.+)$/gm, '<span class="log-add">$1</span>')
+            .replace(/^## (.+)$/gm, '<span class="log-add">$1</span>')
+            .replace(/^# (.+)$/gm, '<span class="log-add">$1</span>')
+            .replace(/^\s*[-*] (.+)$/gm, '  • $1')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1 ($2)');
+    }
+
+    // 待更新的目标 tag (检查更新后填充)
+    let pendingTag = '';
 
     if (btnCheckUpdate) {
         btnCheckUpdate.addEventListener('click', async () => {
             btnCheckUpdate.disabled = true;
             btnDoUpdate.disabled = true;
+            pendingTag = '';
             updState.textContent = '检查中...';
             updState.className = 'update-stat-value';
-            setLog('正在连接 Git 远端检查更新...');
+            setLog('正在连接 GitHub 检查最新 Release...');
 
             try {
                 const res = await api('GET', '/api/admin/update/check');
                 if (res.error) throw new Error(res.message);
 
-                updCurrent.textContent = res.current.log || res.current.hash;
-                updRemote.textContent = res.remote.log || res.remote.hash;
+                updCurrent.textContent = res.current.version || res.current.hash;
+
+                if (!res.remote) {
+                    updRemote.textContent = '无 Release';
+                    updState.textContent = '无可用版本';
+                    updState.className = 'update-stat-value';
+                    setLog(`<span class="log-add">ℹ️ ${escapeHtml(res.message || '远端仓库尚未发布任何 Release。')}</span>`);
+                    return;
+                }
+
+                updRemote.textContent = res.remote.tag;
 
                 if (res.hasUpdate) {
-                    updState.textContent = `落后 ${res.behind} 个提交`;
+                    pendingTag = res.remote.tag;
+                    updState.textContent = `发现新版本 ${res.remote.tag}`;
                     updState.className = 'update-stat-value has-update';
                     btnDoUpdate.disabled = false;
+                    btnDoUpdate.textContent = `更新到 ${res.remote.tag}`;
 
-                    let log = `<span class="log-add">发现新版本 (落后 ${res.behind} 个提交) · 分支 ${escapeHtml(res.branch)}</span>\n\n待更新提交:`;
-                    res.commits.forEach(c => {
-                        log += `\n  <span class="log-add">${escapeHtml(c.hash)}</span> ${escapeHtml(c.subject)}  <span style="opacity:.6">(${escapeHtml(c.author)}, ${escapeHtml(c.date)})</span>`;
-                    });
-                    log += `\n\n点击「开始更新」拉取最新代码。`;
+                    let log = `<span class="log-add">🎉 发现新版本: ${escapeHtml(res.remote.name)} (${escapeHtml(res.remote.tag)})</span>`;
+                    log += `\n当前版本: ${escapeHtml(res.current.version)}`;
+                    if (res.remote.publishedAt) {
+                        log += `\n发布时间: ${escapeHtml(new Date(res.remote.publishedAt).toLocaleString())}`;
+                    }
+                    if (res.remote.body && res.remote.body.trim()) {
+                        log += `\n\n<span class="log-add">━━ 更新说明 ━━</span>\n${renderMarkdown(res.remote.body.trim())}`;
+                    }
+                    log += `\n\n点击「更新到 ${escapeHtml(res.remote.tag)}」开始更新。`;
                     setLog(log);
                 } else {
                     updState.textContent = '已是最新';
                     updState.className = 'update-stat-value up-to-date';
-                    setLog(`<span class="log-ok">✅ 已是最新版本，无需更新。</span>\n分支: ${escapeHtml(res.branch)}`);
+                    setLog(`<span class="log-ok">✅ 已是最新版本 (${escapeHtml(res.current.version)})，无需更新。</span>`);
                 }
             } catch (err) {
                 updState.textContent = '检查失败';
@@ -319,23 +350,24 @@
 
     if (btnDoUpdate) {
         btnDoUpdate.addEventListener('click', async () => {
-            if (!confirm('确定要拉取远端最新代码进行更新吗？')) return;
+            const tagLabel = pendingTag || '最新版本';
+            if (!confirm(`确定要更新到 ${tagLabel} 吗？`)) return;
             btnDoUpdate.disabled = true;
             btnCheckUpdate.disabled = true;
             updState.textContent = '更新中...';
             updState.className = 'update-stat-value';
-            appendLog('\n<span class="log-add">⏳ 正在执行 git pull...</span>');
+            appendLog(`\n<span class="log-add">⏳ 正在切换到 ${escapeHtml(tagLabel)}...</span>`);
 
             try {
-                const res = await api('POST', '/api/admin/update/pull');
+                const res = await api('POST', '/api/admin/update/pull', pendingTag ? { tag: pendingTag } : undefined);
                 if (res.error) throw new Error(res.message);
 
-                updCurrent.textContent = res.current.log || res.current.hash;
+                updCurrent.textContent = res.current.version || res.current.hash;
                 if (res.updated) {
                     updState.textContent = '更新成功';
                     updState.className = 'update-stat-value up-to-date';
-                    updRemote.textContent = res.current.log || res.current.hash;
-                    let log = `<span class="log-ok">✅ 代码更新成功！</span>`;
+                    updRemote.textContent = res.tag || res.current.version;
+                    let log = `<span class="log-ok">✅ 已更新到 ${escapeHtml(res.tag || res.current.version)}！</span>`;
                     if (res.output) log += `\n\n${escapeHtml(res.output)}`;
                     appendLog(log);
                     // 更新成功后自动重启进程并刷新页面

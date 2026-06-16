@@ -461,44 +461,105 @@ app.post('/api/admin/logout', requireAdmin, (req, res) => {
 // 管理后台: 系统在线更新
 // ═══════════════════════════════════════════
 
-// 检查更新 — 对比本地 HEAD 与远端最新 commit
+// ── GitHub 仓库信息 (从 origin remote 推导) ──
+async function getRepoSlug() {
+    const { stdout: url } = await git(['remote', 'get-url', 'origin']);
+    // 支持 https://github.com/owner/repo(.git) 和 git@github.com:owner/repo(.git)
+    const m = url.match(/github\.com[/:]([^/]+)\/(.+?)(?:\.git)?$/);
+    if (!m) return null;
+    return { owner: m[1], repo: m[2] };
+}
+
+// ── 版本号比较 (语义化, 形如 v1.2.3 / 1.2.3) ──
+function parseVersion(tag) {
+    if (!tag) return null;
+    const m = String(tag).trim().match(/v?(\d+)\.(\d+)\.(\d+)/);
+    if (!m) return null;
+    return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
+}
+function compareVersion(a, b) {
+    const va = parseVersion(a), vb = parseVersion(b);
+    if (!va || !vb) return 0;
+    for (let i = 0; i < 3; i++) {
+        if (va[i] !== vb[i]) return va[i] - vb[i];
+    }
+    return 0;
+}
+
+// ── 当前所在版本: 优先精确 tag, 否则 "最近tag-提交数-g哈希", 无 tag 则用哈希 ──
+async function getCurrentVersion() {
+    const { stdout: hash } = await git(['rev-parse', '--short', 'HEAD']);
+    try {
+        const { stdout: exact } = await git(['describe', '--tags', '--exact-match', 'HEAD']);
+        return { version: exact, exact: true, hash };
+    } catch {
+        try {
+            const { stdout: desc } = await git(['describe', '--tags', '--always']);
+            return { version: desc, exact: false, hash };
+        } catch {
+            return { version: hash, exact: false, hash };
+        }
+    }
+}
+
+// ── 拉取 GitHub 最新 Release (含 changelog 正文) ──
+async function fetchLatestRelease() {
+    const slug = await getRepoSlug();
+    if (!slug) return null;
+    const apiUrl = `https://api.github.com/repos/${slug.owner}/${slug.repo}/releases/latest`;
+    const headers = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'ip-query-updater' };
+    if (process.env.GITHUB_TOKEN) headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    const r = await fetch(apiUrl, { headers, timeout: 10000 });
+    if (r.status === 404) return null; // 仓库尚未发布任何 Release
+    if (!r.ok) throw new Error(`GitHub API HTTP ${r.status}`);
+    const d = await r.json();
+    return {
+        tag: d.tag_name,
+        name: d.name || d.tag_name,
+        body: d.body || '',
+        publishedAt: d.published_at,
+        htmlUrl: d.html_url,
+    };
+}
+
+// 检查更新 — 对比当前 tag 与 GitHub 最新 Release
 app.get('/api/admin/update/check', requireAdmin, async (req, res) => {
     try {
-        // 当前分支
-        const { stdout: branch } = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
-        // 拉取远端最新引用 (不合并)
-        await git(['fetch', '--quiet', 'origin', branch]);
+        // 拉取远端 tags (含已删除的清理), 不合并工作区
+        await git(['fetch', '--quiet', '--tags', '--force', 'origin']);
 
-        const { stdout: localHash } = await git(['rev-parse', 'HEAD']);
-        const { stdout: remoteHash } = await git(['rev-parse', `origin/${branch}`]);
-        const { stdout: localLog } = await git(['log', '-1', '--format=%h %s', 'HEAD']);
-        const { stdout: remoteLog } = await git(['log', '-1', '--format=%h %s', `origin/${branch}`]);
+        const cur = await getCurrentVersion();
+        const release = await fetchLatestRelease();
 
-        let behind = 0;
-        let commits = [];
-        if (localHash !== remoteHash) {
-            const { stdout: countStr } = await git(['rev-list', '--count', `HEAD..origin/${branch}`]);
-            behind = parseInt(countStr, 10) || 0;
-            if (behind > 0) {
-                const { stdout: logList } = await git(['log', '--format=%h|%s|%an|%ar', `HEAD..origin/${branch}`]);
-                commits = logList.split('\n').filter(Boolean).map(line => {
-                    const [hash, subject, author, date] = line.split('|');
-                    return { hash, subject, author, date };
-                });
-            }
+        if (!release) {
+            return res.json({
+                success: true,
+                mode: 'release',
+                current: cur,
+                remote: null,
+                hasUpdate: false,
+                message: '远端仓库尚未发布任何 Release。',
+            });
         }
+
+        // 远端 Release 版本号高于当前版本 → 有更新
+        const cmp = compareVersion(release.tag, cur.version);
 
         res.json({
             success: true,
-            branch,
-            current: { hash: localHash.slice(0, 7), log: localLog },
-            remote: { hash: remoteHash.slice(0, 7), log: remoteLog },
-            hasUpdate: localHash !== remoteHash && behind > 0,
-            behind,
-            commits,
+            mode: 'release',
+            current: cur,
+            remote: {
+                tag: release.tag,
+                name: release.name,
+                body: release.body,
+                publishedAt: release.publishedAt,
+                htmlUrl: release.htmlUrl,
+            },
+            hasUpdate: cmp > 0,
         });
     } catch (err) {
-        res.status(500).json({ error: true, message: 'Git 检查失败: ' + (err.stderr || err.message) });
+        res.status(500).json({ error: true, message: '检查更新失败: ' + (err.stderr || err.message) });
     }
 });
 
@@ -537,12 +598,10 @@ app.post('/api/admin/restart', requireAdmin, (req, res) => {
     }, 600);
 });
 
-// 执行更新 — git pull (fast-forward only)
+// 执行更新 — checkout 到指定/最新的 Release tag
 app.post('/api/admin/update/pull', requireAdmin, async (req, res) => {
     try {
-        const { stdout: branch } = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
-
-        // 检查工作区是否干净，避免污染本地修改
+        // 检查工作区是否干净，避免覆盖本地修改 (data/settings.json 已被 gitignore, 不计入)
         const { stdout: status } = await git(['status', '--porcelain']);
         if (status) {
             return res.status(409).json({
@@ -551,22 +610,46 @@ app.post('/api/admin/update/pull', requireAdmin, async (req, res) => {
             });
         }
 
-        const { stdout: beforeHash } = await git(['rev-parse', 'HEAD']);
-        const { stdout: pullOut, stderr: pullErr } = await git(['pull', '--ff-only', 'origin', branch]);
-        const { stdout: afterHash } = await git(['rev-parse', 'HEAD']);
-        const { stdout: afterLog } = await git(['log', '-1', '--format=%h %s', 'HEAD']);
+        await git(['fetch', '--quiet', '--tags', '--force', 'origin']);
 
-        const updated = beforeHash !== afterHash;
+        // 目标 tag: 请求体指定优先, 否则用 GitHub 最新 Release
+        let targetTag = (req.body && req.body.tag) ? String(req.body.tag).trim() : '';
+        if (!targetTag) {
+            const release = await fetchLatestRelease();
+            if (!release) {
+                return res.status(400).json({ error: true, message: '远端仓库尚未发布任何 Release，无可更新版本。' });
+            }
+            targetTag = release.tag;
+        }
+
+        // 校验 tag 存在 (同时防止注入非法 ref)
+        if (!/^[\w.\-/]+$/.test(targetTag)) {
+            return res.status(400).json({ error: true, message: '非法的版本标签: ' + targetTag });
+        }
+        try {
+            await git(['rev-parse', '--verify', `refs/tags/${targetTag}`]);
+        } catch {
+            return res.status(404).json({ error: true, message: `未找到版本标签 ${targetTag}，请先在 GitHub 发布对应 Release。` });
+        }
+
+        const before = await getCurrentVersion();
+        // checkout 到 tag (detached HEAD), 强制以远端版本为准
+        const { stdout: coOut, stderr: coErr } = await git(['checkout', '--force', `tags/${targetTag}`]);
+        const after = await getCurrentVersion();
+
+        const updated = before.hash !== after.hash;
         res.json({
             success: true,
             updated,
-            branch,
-            output: [pullOut, pullErr].filter(Boolean).join('\n'),
-            current: { hash: afterHash.slice(0, 7), log: afterLog },
-            note: updated ? '更新完成。如涉及后端代码 (server.js / lib)，请重启 Node/PM2 进程让新代码生效。' : '已是最新版本，无需更新。',
+            tag: targetTag,
+            output: [coOut, coErr].filter(Boolean).join('\n'),
+            current: after,
+            note: updated
+                ? `已切换到 ${targetTag}。如涉及后端代码 (server.js / lib)，需重启 Node/PM2 进程让新代码生效。`
+                : '已是该版本，无需更新。',
         });
     } catch (err) {
-        res.status(500).json({ error: true, message: 'Git 更新失败: ' + (err.stderr || err.message) });
+        res.status(500).json({ error: true, message: '更新失败: ' + (err.stderr || err.message) });
     }
 });
 
