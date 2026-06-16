@@ -612,18 +612,9 @@ app.post('/api/admin/restart', requireAdmin, (req, res) => {
     }, 600);
 });
 
-// 执行更新 — checkout 到指定/最新的 Release tag
+// 执行更新 — 强制对齐到指定/最新的 Release tag
 app.post('/api/admin/update/pull', requireAdmin, async (req, res) => {
     try {
-        // 检查工作区是否干净，避免覆盖本地修改 (data/settings.json 已被 gitignore, 不计入)
-        const { stdout: status } = await git(['status', '--porcelain']);
-        if (status) {
-            return res.status(409).json({
-                error: true,
-                message: '本地存在未提交的改动，无法自动更新。请先提交或丢弃本地改动:\n' + status,
-            });
-        }
-
         await git(['fetch', '--quiet', '--tags', '--force', 'origin']);
 
         // 目标 tag: 请求体指定优先, 否则用 GitHub 最新 Release
@@ -647,20 +638,32 @@ app.post('/api/admin/update/pull', requireAdmin, async (req, res) => {
         }
 
         const before = await getCurrentVersion();
-        // checkout 到 tag (detached HEAD), 强制以远端版本为准
-        const { stdout: coOut, stderr: coErr } = await git(['checkout', '--force', `tags/${targetTag}`]);
+
+        // 记录是否有本地代码改动 (仅用于日志告知, 不阻断更新)
+        const { stdout: dirty } = await git(['status', '--porcelain']);
+
+        // 强制对齐工作区到目标 tag。
+        // git reset --hard 只影响被 git 跟踪的代码文件；
+        // data/settings.json 与 .env 已被 .gitignore 忽略，用户配置不受影响。
+        const { stdout: resetOut, stderr: resetErr } = await git(['reset', '--hard', `refs/tags/${targetTag}`]);
         const after = await getCurrentVersion();
 
-        const updated = before.hash !== after.hash;
+        // 版本变了, 或清理了脏工作区 → 都视为"已更新"(触发后续重启刷新)
+        const updated = before.hash !== after.hash || !!dirty;
+        const outputLines = [resetOut, resetErr].filter(Boolean);
+        if (dirty) {
+            outputLines.unshift(`⚠️ 检测到本地代码改动，已强制覆盖以对齐 ${targetTag} (用户配置 data/settings.json 不受影响):\n${dirty}`);
+        }
+
         res.json({
             success: true,
             updated,
             tag: targetTag,
-            output: [coOut, coErr].filter(Boolean).join('\n'),
+            output: outputLines.join('\n'),
             current: after,
             note: updated
-                ? `已切换到 ${targetTag}。如涉及后端代码 (server.js / lib)，需重启 Node/PM2 进程让新代码生效。`
-                : '已是该版本，无需更新。',
+                ? `已更新到 ${targetTag}。如涉及后端代码 (server.js / lib)，需重启 Node/PM2 进程让新代码生效。`
+                : `已对齐到 ${targetTag}（版本未变）。`,
         });
     } catch (err) {
         res.status(500).json({ error: true, message: '更新失败: ' + (err.stderr || err.message) });

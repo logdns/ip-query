@@ -251,7 +251,7 @@ pm2 restart ip-query
 1. 进入管理后台 → **在线更新** 标签页
 2. 点击 **检查更新**，系统会调用 GitHub API 获取最新 Release，对比当前版本，展示版本号、发布时间与更新说明
 3. 若有新版本，点击 **更新到 vX.Y.Z**，系统会：
-   - `git fetch --tags` 后 `checkout` 到该 Release 对应的 tag（若本地有未提交改动会中止并提示）
+   - `git fetch --tags` 后强制对齐（`git reset --hard`）到该 Release 对应的 tag；本地代码改动会被覆盖，但 `data/settings.json`、`.env` 已被 gitignore，用户配置不受影响
    - 自动 `pm2 restart` 重启进程使新代码生效
    - 轮询健康检查，服务恢复后**自动刷新页面**
 
