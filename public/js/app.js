@@ -76,7 +76,7 @@
     // 主题切换
     // ═══════════════════════════════════════════
     function initTheme() {
-        const saved = localStorage.getItem('ip-query-theme') || 'dark';
+        const saved = localStorage.getItem('ip-query-theme') || 'light';
         document.body.setAttribute('data-theme', saved);
         themeIcon.textContent = saved === 'dark' ? '🌙' : '🌞';
     }
@@ -265,34 +265,36 @@
     function renderResults(data) {
         const abuse = data.sources.abuseipdb;
         const iplocate = data.sources.iplocate;
-        const best = mergeBestData(abuse, iplocate);
+        const ip2location = data.sources.ip2location;
+        const best = mergeBestData(abuse, iplocate, ip2location);
 
         renderOverview(data.ip, best);
-        renderComparisonTable(abuse, iplocate);
-        renderSecurity(abuse, iplocate);
-        renderLocation(best, iplocate);
+        renderComparisonTable(abuse, iplocate, ip2location);
+        renderSecurity(abuse, iplocate, ip2location);
+        renderLocation(best, iplocate, ip2location);
         showSection('results');
     }
 
-    function mergeBestData(abuse, iplocate) {
+    function mergeBestData(abuse, iplocate, ip2location) {
         const a = abuse?.data || {};
         const d = iplocate?.data || {};
+        const p = ip2location?.data || {};
         return {
-            ip: d.ip || a.ip,
-            country: d.country || a.country,
-            country_code: d.country_code || a.country_code,
-            country_flag: d.country_flag || '',
-            region: d.region,
-            city: d.city,
-            isp: a.isp || d.isp || d.organization,
-            asn: d.asn,
-            organization: d.organization || a.isp,
+            ip: d.ip || p.ip || a.ip,
+            country: d.country || p.country || a.country,
+            country_code: d.country_code || p.country_code || a.country_code,
+            country_flag: d.country_flag || p.country_flag || '',
+            region: d.region || p.region,
+            city: d.city || p.city,
+            isp: a.isp || d.isp || p.isp || d.organization,
+            asn: d.asn || p.asn,
+            organization: d.organization || p.organization || a.isp,
             hostname: d.hostname || a.hostname,
-            timezone: d.timezone,
-            usage_type: a.usage_type || d.usage_type || d.connection_type,
-            latitude: d.latitude,
-            longitude: d.longitude,
-            ip_type: d.ip_type || null,
+            timezone: d.timezone || p.timezone,
+            usage_type: a.usage_type || d.usage_type || p.usage_type || d.connection_type || p.connection_type,
+            latitude: d.latitude ?? p.latitude,
+            longitude: d.longitude ?? p.longitude,
+            ip_type: d.ip_type || p.ip_type || null,
         };
     }
 
@@ -337,10 +339,11 @@
     }
 
     // ── 地理位置 & 地址 ──
-    function renderLocation(best, iplocate) {
+    function renderLocation(best, iplocate, ip2location) {
         const d = iplocate?.data || {};
-        const lat = d.latitude || null;
-        const lon = d.longitude || null;
+        const p = ip2location?.data || {};
+        const lat = d.latitude ?? p.latitude ?? null;
+        const lon = d.longitude ?? p.longitude ?? null;
 
         if (!lat || !lon) { locationSection.classList.add('hidden'); return; }
         locationSection.classList.remove('hidden');
@@ -433,13 +436,15 @@
     }
 
     // ── 对比表 ──
-    function renderComparisonTable(abuse, iplocate) {
+    function renderComparisonTable(abuse, iplocate, ip2location) {
         const a = abuse?.success ? abuse.data : null;
         const d = iplocate?.success ? iplocate.data : null;
+        const p = ip2location?.success ? ip2location.data : null;
 
         const activeSources = [];
-        if (a) activeSources.push({ key: 'abuse', label: 'AbuseIPDB', badge: 'badge-abuse', icon: '🛡️' });
-        if (d) activeSources.push({ key: 'iplocate', label: 'iplocate.io', badge: 'badge-dkly', icon: '📡' });
+        if (a) activeSources.push({ key: 'abuse', label: t('数据源1', 'Source 1'), badge: 'badge-abuse', icon: '🛡️' });
+        if (d) activeSources.push({ key: 'iplocate', label: t('数据源2', 'Source 2'), badge: 'badge-dkly', icon: '📡' });
+        if (p) activeSources.push({ key: 'ip2location', label: t('数据源3', 'Source 3'), badge: 'badge-ip2l', icon: '🌍' });
 
         if (!activeSources.length) {
             compTableHead.innerHTML = '';
@@ -469,6 +474,7 @@
         const sourceDataMap = {};
         if (a) sourceDataMap.abuse = a;
         if (d) sourceDataMap.iplocate = d;
+        if (p) sourceDataMap.ip2location = p;
 
         compTableBody.innerHTML = rows.map(row => {
             const values = activeSources.map(s => {
@@ -487,26 +493,45 @@
         }).filter(Boolean).join('');
 
         const failed = [];
-        if (!abuse?.success) failed.push(`AbuseIPDB: ${abuse?.error || t('未知', 'Unknown')}`);
-        if (!iplocate?.success) failed.push(`iplocate: ${iplocate?.error || t('未知', 'Unknown')}`);
+        if (!abuse?.success) failed.push(`${t('数据源1', 'Source 1')}: ${abuse?.error || t('未知', 'Unknown')}`);
+        if (!iplocate?.success) failed.push(`${t('数据源2', 'Source 2')}: ${iplocate?.error || t('未知', 'Unknown')}`);
+        if (!ip2location?.success) failed.push(`${t('数据源3', 'Source 3')}: ${ip2location?.error || t('未知', 'Unknown')}`);
         if (failed.length) {
             compTableBody.innerHTML += `<tr><td colspan="${activeSources.length + 1}" style="padding:12px 24px;font-size:0.82rem;color:var(--status-warning)">⚠️ ${t('部分数据源不可用', 'Some sources unavailable')}: ${failed.join(' | ')}</td></tr>`;
         }
     }
 
     // ── 安全检测 ──
-    function renderSecurity(abuse, iplocate) {
+    function renderSecurity(abuse, iplocate, ip2location) {
         const d = iplocate?.success ? iplocate.data : {};
         const a = abuse?.success ? abuse.data : {};
+        const p = ip2location?.success ? ip2location.data : {};
+
+        const S1 = t('数据源1', 'Source 1');
+        const S2 = t('数据源2', 'Source 2');
+        const S3 = t('数据源3', 'Source 3');
+
+        const pick = (...cands) => {
+            for (const [val, src] of cands) {
+                if (val != null) return { value: val, source: src };
+            }
+            return { value: null, source: null };
+        };
+
+        const vpn = pick([d.is_vpn, S2], [p.is_vpn, S3]);
+        const proxy = pick([d.is_proxy, S2], [p.is_proxy, S3]);
+        const tor = pick([d.is_tor, S2], [p.is_tor, S3], [a.is_tor, S1]);
+        const threat = pick([d.is_threat, S2], [p.is_threat, S3], [a.is_threat, S1]);
 
         const items = [
-            { label: 'VPN', value: d.is_vpn, source: d.is_vpn != null ? 'iplocate' : null },
-            { label: t('代理', 'Proxy'), value: d.is_proxy, source: d.is_proxy != null ? 'iplocate' : null },
-            { label: 'Tor', value: d.is_tor ?? a.is_tor, source: d.is_tor != null ? 'iplocate' : (a.is_tor != null ? 'AbuseIPDB' : null) },
-            { label: t('威胁', 'Threat'), value: d.is_threat ?? a.is_threat, source: d.is_threat != null ? 'iplocate' : (a.is_threat != null ? 'AbuseIPDB' : null) },
+            { label: 'VPN', value: vpn.value, source: vpn.source },
+            { label: t('代理', 'Proxy'), value: proxy.value, source: proxy.source },
+            { label: 'Tor', value: tor.value, source: tor.source },
+            { label: t('威胁', 'Threat'), value: threat.value, source: threat.source },
         ];
-        if (a.abuse_score !== undefined) items.push({ label: t('滥用评分', 'Abuse Score'), value: a.abuse_score, source: 'AbuseIPDB', isScore: true });
-        if (a.total_reports !== undefined) items.push({ label: t('举报次数', 'Reports'), value: a.total_reports, source: 'AbuseIPDB', isCount: true });
+        if (a.abuse_score !== undefined) items.push({ label: t('滥用评分', 'Abuse Score'), value: a.abuse_score, source: S1, isScore: true });
+        if (a.total_reports !== undefined) items.push({ label: t('举报次数', 'Reports'), value: a.total_reports, source: S1, isCount: true });
+        if (p.fraud_score != null) items.push({ label: t('欺诈评分', 'Fraud Score'), value: p.fraud_score, source: S3, isScore: true });
 
         securityGrid.innerHTML = items.map(item => {
             let cls, icon, val;

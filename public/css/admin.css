@@ -538,6 +538,10 @@ body::before {
     background: var(--info);
 }
 
+.api-dot.ip2l {
+    background: #34d399;
+}
+
 .api-dot.nominatim {
     background: var(--success);
 }
@@ -598,6 +602,81 @@ body::before {
 
 .save-status.error {
     background: var(--danger-bg);
+    color: var(--danger);
+}
+
+/* ── System Update ── */
+.update-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.update-stat {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+}
+
+.update-stat-label {
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+}
+
+.update-stat-value {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.update-stat-value.has-update {
+    color: var(--warning);
+}
+
+.update-stat-value.up-to-date {
+    color: var(--success);
+}
+
+.update-stat-value.error {
+    color: var(--danger);
+}
+
+.update-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.update-log {
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 120px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.update-log .log-add {
+    color: var(--warning);
+}
+
+.update-log .log-ok {
+    color: var(--success);
+}
+
+.update-log .log-err {
     color: var(--danger);
 }
 

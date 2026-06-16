@@ -1002,6 +1002,11 @@ body::before {
     color: var(--status-info);
 }
 
+.badge-ip2l {
+    background: rgba(52, 211, 153, 0.12);
+    color: #34d399;
+}
+
 .comparison-table td {
     padding: var(--space-sm) var(--space-lg);
     border-bottom: 1px solid var(--border-subtle);

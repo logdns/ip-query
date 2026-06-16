@@ -142,10 +142,12 @@
         const abuseKeys = data.apiKeys?.abuseipdb || [];
         $('#apiAbuseKeys').value = abuseKeys.join('\n');
         $('#apiIplocateKey').value = data.apiKeys?.iplocate || '';
+        $('#apiIp2locationKey').value = data.apiKeys?.ip2location || '';
 
         // API Endpoints
         $('#endpointAbuseipdb').value = data.apiEndpoints?.abuseipdb || '';
         $('#endpointIplocate').value = data.apiEndpoints?.iplocate || '';
+        $('#endpointIp2location').value = data.apiEndpoints?.ip2location || '';
         $('#endpointNominatim').value = data.apiEndpoints?.nominatim || '';
 
         // Map
@@ -168,11 +170,13 @@
             apiKeys: {
                 abuseipdb: $('#apiAbuseKeys').value.split('\n').map(s => s.trim()).filter(Boolean),
                 iplocate: $('#apiIplocateKey').value.trim(),
+                ip2location: $('#apiIp2locationKey').value.trim(),
                 nominatimEmail: $('#nominatimEmail').value.trim(),
             },
             apiEndpoints: {
                 abuseipdb: $('#endpointAbuseipdb').value.trim(),
                 iplocate: $('#endpointIplocate').value.trim(),
+                ip2location: $('#endpointIp2location').value.trim(),
                 nominatim: $('#endpointNominatim').value.trim(),
             },
             admin: {
@@ -233,6 +237,10 @@
         btn.classList.add('active');
         const panel = $(`#panel-${btn.dataset.tab}`);
         if (panel) panel.classList.add('active');
+
+        // 在线更新页不涉及设置保存，隐藏底部保存栏
+        const saveBar = $('.save-bar');
+        if (saveBar) saveBar.classList.toggle('hidden', btn.dataset.tab === 'update');
     });
 
     // ═══════════════════════════════════════════
@@ -245,6 +253,152 @@
             input.type = isPassword ? 'text' : 'password';
             btnTogglePwd.textContent = isPassword ? '🙈' : '👁️';
         });
+    }
+
+    // ═══════════════════════════════════════════
+    // 系统在线更新
+    // ═══════════════════════════════════════════
+    const btnCheckUpdate = $('#btnCheckUpdate');
+    const btnDoUpdate = $('#btnDoUpdate');
+    const updCurrent = $('#updCurrent');
+    const updRemote = $('#updRemote');
+    const updState = $('#updState');
+    const updLog = $('#updLog');
+
+    function setLog(html) {
+        if (updLog) updLog.innerHTML = html;
+    }
+    function appendLog(html) {
+        if (updLog) updLog.innerHTML += '\n' + html;
+    }
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    if (btnCheckUpdate) {
+        btnCheckUpdate.addEventListener('click', async () => {
+            btnCheckUpdate.disabled = true;
+            btnDoUpdate.disabled = true;
+            updState.textContent = '检查中...';
+            updState.className = 'update-stat-value';
+            setLog('正在连接 Git 远端检查更新...');
+
+            try {
+                const res = await api('GET', '/api/admin/update/check');
+                if (res.error) throw new Error(res.message);
+
+                updCurrent.textContent = res.current.log || res.current.hash;
+                updRemote.textContent = res.remote.log || res.remote.hash;
+
+                if (res.hasUpdate) {
+                    updState.textContent = `落后 ${res.behind} 个提交`;
+                    updState.className = 'update-stat-value has-update';
+                    btnDoUpdate.disabled = false;
+
+                    let log = `<span class="log-add">发现新版本 (落后 ${res.behind} 个提交) · 分支 ${escapeHtml(res.branch)}</span>\n\n待更新提交:`;
+                    res.commits.forEach(c => {
+                        log += `\n  <span class="log-add">${escapeHtml(c.hash)}</span> ${escapeHtml(c.subject)}  <span style="opacity:.6">(${escapeHtml(c.author)}, ${escapeHtml(c.date)})</span>`;
+                    });
+                    log += `\n\n点击「开始更新」拉取最新代码。`;
+                    setLog(log);
+                } else {
+                    updState.textContent = '已是最新';
+                    updState.className = 'update-stat-value up-to-date';
+                    setLog(`<span class="log-ok">✅ 已是最新版本，无需更新。</span>\n分支: ${escapeHtml(res.branch)}`);
+                }
+            } catch (err) {
+                updState.textContent = '检查失败';
+                updState.className = 'update-stat-value error';
+                setLog(`<span class="log-err">❌ ${escapeHtml(err.message)}</span>`);
+            } finally {
+                btnCheckUpdate.disabled = false;
+            }
+        });
+    }
+
+    if (btnDoUpdate) {
+        btnDoUpdate.addEventListener('click', async () => {
+            if (!confirm('确定要拉取远端最新代码进行更新吗？')) return;
+            btnDoUpdate.disabled = true;
+            btnCheckUpdate.disabled = true;
+            updState.textContent = '更新中...';
+            updState.className = 'update-stat-value';
+            appendLog('\n<span class="log-add">⏳ 正在执行 git pull...</span>');
+
+            try {
+                const res = await api('POST', '/api/admin/update/pull');
+                if (res.error) throw new Error(res.message);
+
+                updCurrent.textContent = res.current.log || res.current.hash;
+                if (res.updated) {
+                    updState.textContent = '更新成功';
+                    updState.className = 'update-stat-value up-to-date';
+                    updRemote.textContent = res.current.log || res.current.hash;
+                    let log = `<span class="log-ok">✅ 代码更新成功！</span>`;
+                    if (res.output) log += `\n\n${escapeHtml(res.output)}`;
+                    appendLog(log);
+                    // 更新成功后自动重启进程并刷新页面
+                    await restartAndReload();
+                } else {
+                    updState.textContent = '已是最新';
+                    updState.className = 'update-stat-value up-to-date';
+                    appendLog(`<span class="log-ok">已是最新版本，无需更新。</span>`);
+                    btnCheckUpdate.disabled = false;
+                }
+            } catch (err) {
+                updState.textContent = '更新失败';
+                updState.className = 'update-stat-value error';
+                appendLog(`<span class="log-err">❌ ${escapeHtml(err.message)}</span>`);
+                btnDoUpdate.disabled = false;
+                btnCheckUpdate.disabled = false;
+            }
+        });
+    }
+
+    // 重启进程 → 轮询健康检查 → 刷新页面
+    async function restartAndReload() {
+        updState.textContent = '重启中...';
+        updState.className = 'update-stat-value';
+        appendLog(`\n<span class="log-add">⏳ 正在重启服务进程...</span>`);
+
+        let restartRes;
+        try {
+            restartRes = await api('POST', '/api/admin/restart');
+        } catch {
+            restartRes = null; // 进程可能已被杀死导致请求中断，属预期
+        }
+
+        if (restartRes && restartRes.restarted === false) {
+            // 非 PM2 环境，无法自动重启
+            updState.textContent = '需手动重启';
+            updState.className = 'update-stat-value has-update';
+            appendLog(`<span class="log-add">⚠️ ${escapeHtml(restartRes.message)}</span>`);
+            appendLog(`<span class="log-add">前端文件已更新，3 秒后刷新页面...</span>`);
+            setTimeout(() => location.reload(true), 3000);
+            return;
+        }
+
+        appendLog(`<span class="log-add">服务重启中，等待恢复...</span>`);
+
+        // 轮询健康检查，最多约 30 秒
+        const deadline = Date.now() + 30000;
+        await new Promise(r => setTimeout(r, 2000)); // 给进程一点退出时间
+        while (Date.now() < deadline) {
+            try {
+                const res = await fetch('/api/health', { cache: 'no-store' });
+                if (res.ok) {
+                    appendLog(`<span class="log-ok">✅ 服务已恢复，即将刷新页面...</span>`);
+                    setTimeout(() => location.reload(true), 1200);
+                    return;
+                }
+            } catch { /* 服务尚未恢复，继续轮询 */ }
+            await new Promise(r => setTimeout(r, 1500));
+        }
+
+        // 超时兜底：仍然刷新，让用户看到最新状态
+        appendLog(`<span class="log-add">⚠️ 等待服务恢复超时，仍将刷新页面，请确认进程状态。</span>`);
+        setTimeout(() => location.reload(true), 1500);
     }
 
     // ═══════════════════════════════════════════

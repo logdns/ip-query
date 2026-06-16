@@ -230,6 +230,69 @@ pm2 restart ip-query
 
 ---
 
+## 🔄 升级与数据迁移 / Upgrade & Data Migration
+
+系统支持**后台一键在线更新**，也可手动更新。无论哪种方式，**用户配置数据都会自动保留**，无需手动迁移。
+
+### 配置数据存放在哪里？
+
+| 数据 | 存储位置 | 是否纳入 Git | 更新时是否保留 |
+|------|----------|:---:|:---:|
+| API 密钥 / 管理密码 / SEO / 接口地址 | `data/settings.json` | ❌ 已被 `.gitignore` 忽略 | ✅ 自动保留 |
+| 环境变量（仅首次启动用于初始化） | `.env` | ❌ 已被 `.gitignore` 忽略 | ✅ 自动保留 |
+| 程序代码 | 各源码文件 | ✅ | 🔄 被新版本覆盖 |
+
+> **核心机制**：`data/settings.json` 与 `.env` 都在 `.gitignore` 中，`git pull` **永远不会覆盖**它们。所有在管理后台修改的配置都持久化在 `data/settings.json`，因此升级是无损的。
+
+### 方式一：后台在线更新（推荐）
+
+1. 进入管理后台 → **在线更新** 标签页
+2. 点击 **检查更新**，系统会对比本地与 GitHub 远端版本，列出待更新的提交
+3. 点击 **开始更新**，系统会：
+   - 执行 `git pull`（仅 fast-forward，若本地有未提交改动会中止并提示）
+   - 自动 `pm2 restart` 重启进程使新代码生效
+   - 轮询健康检查，服务恢复后**自动刷新页面**
+
+> 若未运行在 PM2 下，后台会提示需手动重启进程（前端文件已生效，刷新即可）。
+
+### 方式二：命令行手动更新
+
+```bash
+cd /www/wwwroot/ip-query
+git pull                       # 拉取最新代码（不会动 data/settings.json）
+npm install --production       # 如有新依赖
+pm2 restart ip-query           # 重启使后端代码生效
+```
+
+### 新增配置项如何自动迁移？
+
+`lib/settings.js` 在读取时使用 `deepMerge` 将**已存在的 `settings.json`** 与**新版默认配置**合并：
+
+- 新版本新增的配置字段 → 自动补上默认值
+- 你已有的配置值 → 原样保留，不被覆盖
+
+因此从旧版本升级后，无需手动编辑 `settings.json`，新功能所需的配置项会自动出现。
+
+### 从旧版本首次迁移（手动备份建议）
+
+升级生产环境前，建议先备份配置（一行命令即可）：
+
+```bash
+cp data/settings.json data/settings.json.bak    # 备份当前配置
+# 如更新后出现异常，可随时回滚：
+#   cp data/settings.json.bak data/settings.json && pm2 restart ip-query
+```
+
+若需回退到某个旧版本代码：
+
+```bash
+git log --oneline                 # 查看历史版本
+git checkout <commit-hash>        # 切到指定版本（data/settings.json 不受影响）
+pm2 restart ip-query
+```
+
+---
+
 ## 📂 项目结构 / Project Structure
 
 ```

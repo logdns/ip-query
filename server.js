@@ -4,7 +4,22 @@ const fetch = require('node-fetch');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const { execFile } = require('child_process');
 const settings = require('./lib/settings');
+
+// ── Git 命令封装 (用于后台在线更新) ──
+function git(args, opts = {}) {
+    return new Promise((resolve, reject) => {
+        execFile('git', args, { cwd: __dirname, timeout: 60000, maxBuffer: 1024 * 1024, ...opts }, (err, stdout, stderr) => {
+            if (err) {
+                err.stdout = stdout;
+                err.stderr = stderr;
+                return reject(err);
+            }
+            resolve({ stdout: (stdout || '').trim(), stderr: (stderr || '').trim() });
+        });
+    });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3008;
@@ -64,6 +79,9 @@ function getAbuseKeys() {
 }
 function getIplocateKey() {
     return settings.get().apiKeys?.iplocate || '';
+}
+function getIp2locationKey() {
+    return settings.get().apiKeys?.ip2location || '';
 }
 
 let abuseKeyIndex = 0;
@@ -223,6 +241,65 @@ async function fetchIplocate(ip) {
 }
 
 // ═══════════════════════════════════════════
+// 数据源3: ip2location.io
+// ═══════════════════════════════════════════
+async function fetchIp2location(ip) {
+    const key = getIp2locationKey();
+    try {
+        const s = settings.get();
+        const baseUrl = s.apiEndpoints?.ip2location || 'https://api.ip2location.io/';
+        const params = new URLSearchParams();
+        if (key) params.set('key', key);
+        if (ip) params.set('ip', ip);
+        const sep = baseUrl.includes('?') ? '&' : '?';
+        const url = `${baseUrl}${sep}${params.toString()}`;
+        const res = await fetch(url, { timeout: 8000 });
+        if (!res.ok) throw new Error(`ip2location HTTP ${res.status}`);
+        const d = await res.json();
+        if (d.error) throw new Error(d.error.error_message || 'ip2location error');
+        const proxy = d.proxy || {};
+        return {
+            source: 'ip2location', success: true,
+            data: {
+                ip: d.ip || ip,
+                country: d.country_name || d.country?.name || null,
+                country_code: d.country_code || null,
+                country_flag: d.country?.flag || null,
+                region: d.region_name || null,
+                city: d.city_name || null,
+                latitude: d.latitude ?? null,
+                longitude: d.longitude ?? null,
+                timezone: d.time_zone || null,
+                timezone_abbr: d.time_zone_info?.abbreviation || null,
+                asn: d.asn || d.as_info?.as_number || null,
+                organization: d.as || d.as_info?.as_name || null,
+                connection_type: d.as_info?.as_usage_type || null,
+                isp: d.isp || d.as || null,
+                hostname: null,
+                ip_type: d.address_type || null,
+                is_vpn: proxy.is_vpn ?? null,
+                is_proxy: d.is_proxy ?? null,
+                is_tor: proxy.is_tor ?? null,
+                is_threat: proxy.threat ? proxy.threat !== '-' : null,
+                continent: d.continent?.name || null,
+                continent_code: d.continent?.code || null,
+                postal: d.zip_code || null,
+                domain: d.domain || d.as_info?.as_domain || null,
+                usage_type: d.usage_type || null,
+                is_hosting: proxy.is_data_center ?? null,
+                is_anonymous: proxy.is_public_proxy ?? null,
+                company_name: d.isp || null,
+                company_domain: d.domain || null,
+                hosting_provider: proxy.provider && proxy.provider !== '-' ? proxy.provider : null,
+                fraud_score: d.fraud_score ?? null,
+            }
+        };
+    } catch (err) {
+        return { source: 'ip2location', success: false, error: err.message, data: null };
+    }
+}
+
+// ═══════════════════════════════════════════
 // Nominatim 反向地理编码
 // ═══════════════════════════════════════════
 async function reverseGeocode(lat, lon) {
@@ -305,10 +382,10 @@ app.get('/api/query', async (req, res) => {
     if (!isValidIP(ip)) return res.status(400).json({ error: true, message: 'IP 地址格式无效' });
 
     try {
-        const [abuse, iplocate] = await Promise.all([
-            fetchAbuseIPDB(ip), fetchIplocate(ip),
+        const [abuse, iplocate, ip2location] = await Promise.all([
+            fetchAbuseIPDB(ip), fetchIplocate(ip), fetchIp2location(ip),
         ]);
-        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, iplocate } });
+        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, iplocate, ip2location } });
     } catch (err) {
         res.status(500).json({ error: true, message: '查询失败: ' + err.message });
     }
@@ -381,6 +458,119 @@ app.post('/api/admin/logout', requireAdmin, (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// 管理后台: 系统在线更新
+// ═══════════════════════════════════════════
+
+// 检查更新 — 对比本地 HEAD 与远端最新 commit
+app.get('/api/admin/update/check', requireAdmin, async (req, res) => {
+    try {
+        // 当前分支
+        const { stdout: branch } = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+        // 拉取远端最新引用 (不合并)
+        await git(['fetch', '--quiet', 'origin', branch]);
+
+        const { stdout: localHash } = await git(['rev-parse', 'HEAD']);
+        const { stdout: remoteHash } = await git(['rev-parse', `origin/${branch}`]);
+        const { stdout: localLog } = await git(['log', '-1', '--format=%h %s', 'HEAD']);
+        const { stdout: remoteLog } = await git(['log', '-1', '--format=%h %s', `origin/${branch}`]);
+
+        let behind = 0;
+        let commits = [];
+        if (localHash !== remoteHash) {
+            const { stdout: countStr } = await git(['rev-list', '--count', `HEAD..origin/${branch}`]);
+            behind = parseInt(countStr, 10) || 0;
+            if (behind > 0) {
+                const { stdout: logList } = await git(['log', '--format=%h|%s|%an|%ar', `HEAD..origin/${branch}`]);
+                commits = logList.split('\n').filter(Boolean).map(line => {
+                    const [hash, subject, author, date] = line.split('|');
+                    return { hash, subject, author, date };
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            branch,
+            current: { hash: localHash.slice(0, 7), log: localLog },
+            remote: { hash: remoteHash.slice(0, 7), log: remoteLog },
+            hasUpdate: localHash !== remoteHash && behind > 0,
+            behind,
+            commits,
+        });
+    } catch (err) {
+        res.status(500).json({ error: true, message: 'Git 检查失败: ' + (err.stderr || err.message) });
+    }
+});
+
+// 健康检查 — 公开，用于重启后前端轮询服务是否恢复
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true });
+});
+
+// 是否运行在 PM2 下
+function isUnderPM2() {
+    return process.env.pm_id !== undefined || !!process.env.PM2_HOME;
+}
+
+// 重启 PM2 进程 — 先响应再重启，避免客户端收不到结果
+app.post('/api/admin/restart', requireAdmin, (req, res) => {
+    if (!isUnderPM2()) {
+        return res.json({
+            success: true,
+            restarted: false,
+            message: '未检测到 PM2 环境，无法自动重启。请手动重启 Node 进程让新代码生效。',
+        });
+    }
+    const target = process.env.name || 'ip-query';
+    res.json({ success: true, restarted: true, target, message: `正在重启 PM2 进程 [${target}]...` });
+
+    // 延迟重启，确保上面的响应已发送给客户端。
+    // detached + unref 让重启命令脱离当前进程，即使本进程被杀死也能完成。
+    setTimeout(() => {
+        const { spawn } = require('child_process');
+        try {
+            const child = spawn('pm2', ['restart', target], { cwd: __dirname, detached: true, stdio: 'ignore' });
+            child.unref();
+        } catch (e) {
+            console.error('PM2 重启失败:', e.message);
+        }
+    }, 600);
+});
+
+// 执行更新 — git pull (fast-forward only)
+app.post('/api/admin/update/pull', requireAdmin, async (req, res) => {
+    try {
+        const { stdout: branch } = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+
+        // 检查工作区是否干净，避免污染本地修改
+        const { stdout: status } = await git(['status', '--porcelain']);
+        if (status) {
+            return res.status(409).json({
+                error: true,
+                message: '本地存在未提交的改动，无法自动更新。请先提交或丢弃本地改动:\n' + status,
+            });
+        }
+
+        const { stdout: beforeHash } = await git(['rev-parse', 'HEAD']);
+        const { stdout: pullOut, stderr: pullErr } = await git(['pull', '--ff-only', 'origin', branch]);
+        const { stdout: afterHash } = await git(['rev-parse', 'HEAD']);
+        const { stdout: afterLog } = await git(['log', '-1', '--format=%h %s', 'HEAD']);
+
+        const updated = beforeHash !== afterHash;
+        res.json({
+            success: true,
+            updated,
+            branch,
+            output: [pullOut, pullErr].filter(Boolean).join('\n'),
+            current: { hash: afterHash.slice(0, 7), log: afterLog },
+            note: updated ? '更新完成。如涉及后端代码 (server.js / lib)，请重启 Node/PM2 进程让新代码生效。' : '已是最新版本，无需更新。',
+        });
+    } catch (err) {
+        res.status(500).json({ error: true, message: 'Git 更新失败: ' + (err.stderr || err.message) });
+    }
+});
+
+// ═══════════════════════════════════════════
 // 页面路由: 管理后台
 // ═══════════════════════════════════════════
 app.get('/admin', (req, res) => {
@@ -407,9 +597,11 @@ app.listen(PORT, '0.0.0.0', () => {
     const s = settings.get();
     const abuseCount = s.apiKeys?.abuseipdb?.length || 0;
     const hasIplocate = !!s.apiKeys?.iplocate;
+    const hasIp2location = !!s.apiKeys?.ip2location;
     console.log(`🚀 IP Query Server running at http://0.0.0.0:${PORT}`);
     console.log(`   AbuseIPDB keys: ${abuseCount} loaded`);
     console.log(`   iplocate.io:    ${hasIplocate ? '✅ configured' : '❌ not configured'}`);
+    console.log(`   ip2location.io: ${hasIp2location ? '✅ configured' : '⚠️  keyless (1000/day)'}`);
     console.log(`   Admin panel:    http://0.0.0.0:${PORT}/admin`);
     console.log(`   Admin password: ${s.admin?.password || 'admin123'}`);
 });
