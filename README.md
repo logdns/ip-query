@@ -244,24 +244,42 @@ pm2 restart ip-query
 
 > **核心机制**：`data/settings.json` 与 `.env` 都在 `.gitignore` 中，`git pull` **永远不会覆盖**它们。所有在管理后台修改的配置都持久化在 `data/settings.json`，因此升级是无损的。
 
-### 方式一：后台在线更新（推荐）
+### 方式一：后台在线更新（推荐，基于 GitHub Releases）
+
+后台更新基于 **GitHub Releases**：只有维护者发布正式 Release 时才会提示更新，版本号语义化（如 `v1.1.0`），并附完整更新说明。
 
 1. 进入管理后台 → **在线更新** 标签页
-2. 点击 **检查更新**，系统会对比本地与 GitHub 远端版本，列出待更新的提交
-3. 点击 **开始更新**，系统会：
-   - 执行 `git pull`（仅 fast-forward，若本地有未提交改动会中止并提示）
+2. 点击 **检查更新**，系统会调用 GitHub API 获取最新 Release，对比当前版本，展示版本号、发布时间与更新说明
+3. 若有新版本，点击 **更新到 vX.Y.Z**，系统会：
+   - `git fetch --tags` 后 `checkout` 到该 Release 对应的 tag（若本地有未提交改动会中止并提示）
    - 自动 `pm2 restart` 重启进程使新代码生效
    - 轮询健康检查，服务恢复后**自动刷新页面**
 
 > 若未运行在 PM2 下，后台会提示需手动重启进程（前端文件已生效，刷新即可）。
+> 私有仓库可在 `.env` 中配置 `GITHUB_TOKEN` 以访问 Release API。
+
+### 维护者：如何发布新版本
+
+```bash
+# 1. 提交并推送代码到 main
+git push origin main
+
+# 2. 打 tag 并发布 Release (需安装 gh CLI)
+gh release create v1.1.0 --title "v1.1.0" --notes "## 更新内容
+- 新增 XXX 功能
+- 修复 YYY 问题"
+```
+
+发布后，所有部署方在后台「检查更新」即可看到 `v1.1.0` 及其更新说明。
 
 ### 方式二：命令行手动更新
 
 ```bash
 cd /www/wwwroot/ip-query
-git pull                       # 拉取最新代码（不会动 data/settings.json）
-npm install --production       # 如有新依赖
-pm2 restart ip-query           # 重启使后端代码生效
+git fetch --tags                       # 拉取最新 tag（不会动 data/settings.json）
+git checkout v1.1.0                    # 切换到目标版本
+npm install --production               # 如有新依赖
+pm2 restart ip-query                   # 重启使后端代码生效
 ```
 
 ### 新增配置项如何自动迁移？
