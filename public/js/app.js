@@ -294,16 +294,8 @@
             usage_type: a.usage_type || d.usage_type || p.usage_type || d.connection_type || p.connection_type,
             latitude: d.latitude ?? p.latitude,
             longitude: d.longitude ?? p.longitude,
-            ip_type: d.ip_type || p.ip_type || a.ip_type || ipVersion(d.ip || p.ip || a.ip),
+            ip_type: d.ip_type || p.ip_type || a.ip_type || null,
         };
-    }
-
-    // IP 版本 (IPv4 / IPv6) — 兜底, 始终可从地址推导
-    function ipVersion(ip) {
-        if (!ip) return null;
-        if (ip.includes(':')) return 'IPv6';
-        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return 'IPv4';
-        return null;
     }
 
     // ── 总览卡片 ──
@@ -318,7 +310,7 @@
             { label: 'ASN', value: best.asn || 'N/A', accent: true },
             { label: t('时区', 'Timezone'), value: best.timezone || 'N/A' },
             { label: t('网络类型', 'Network'), value: formatUsageType(best.usage_type) || 'N/A', highlight: true },
-            { label: t('IP 类型', 'IP Type'), value: best.ip_type || 'N/A' },
+            { label: t('IP 类型', 'IP Type'), value: formatUsageType(best.ip_type) || 'N/A' },
         ];
 
         resultOverview.innerHTML = cards.map(c => `
@@ -331,19 +323,42 @@
 
     function formatUsageType(type) {
         if (!type) return null;
-        const map = {
-            'hosting': t('🏢 主机托管', '🏢 Hosting'),
-            'isp': t('🏠 家庭宽带', '🏠 ISP'),
-            'business': t('🏗️ 企业网络', '🏗️ Business'),
-            'edu': t('🎓 教育网络', '🎓 Education'),
-            'gov': t('🏛️ 政府网络', '🏛️ Government'),
-            'mil': t('🪖 军事网络', '🪖 Military'),
+        const raw = String(type).trim();
+        const lower = raw.toLowerCase();
+        // ip2location 短代码精确匹配
+        const codes = {
+            dch: 'datacenter', isp: 'isp', mob: 'mobile', com: 'business',
+            org: 'organization', gov: 'government', mil: 'military',
+            edu: 'education', lib: 'education', cdn: 'cdn', rsv: 'reserved', ses: 'bot',
         };
-        const lower = type.toLowerCase();
-        for (const [k, v] of Object.entries(map)) {
-            if (lower.includes(k)) return v;
+        let key = codes[lower] || null;
+        if (!key) {
+            // 描述性词子串匹配 (iplocate/AbuseIPDB 等返回的文本)
+            if (/(data\s*center|datacenter|hosting|colo|cloud|transit)/.test(lower)) key = 'datacenter';
+            else if (/cdn|content delivery/.test(lower)) key = 'cdn';
+            else if (/mobile|cellular/.test(lower)) key = 'mobile';
+            else if (/isp|residential|broadband|fixed line|dsl|cable|fiber/.test(lower)) key = 'isp';
+            else if (/business|commercial|enterprise/.test(lower)) key = 'business';
+            else if (/education|university|school|college|academic|library/.test(lower)) key = 'education';
+            else if (/government|\bgov\b/.test(lower)) key = 'government';
+            else if (/military/.test(lower)) key = 'military';
+            else if (/organization|non[-\s]?profit/.test(lower)) key = 'organization';
+            else if (/reserved/.test(lower)) key = 'reserved';
         }
-        return type;
+        const labels = {
+            datacenter: t('🏢 数据中心/主机', '🏢 Data Center/Hosting'),
+            cdn: t('🌐 CDN 节点', '🌐 CDN'),
+            mobile: t('📱 移动网络', '📱 Mobile'),
+            isp: t('🏠 家庭宽带', '🏠 Residential ISP'),
+            business: t('🏢 商业/企业', '🏢 Business'),
+            education: t('🎓 教育/科研', '🎓 Education'),
+            government: t('🏛️ 政府机构', '🏛️ Government'),
+            military: t('🪖 军事网络', '🪖 Military'),
+            organization: t('🏛️ 组织机构', '🏛️ Organization'),
+            reserved: t('🔒 保留地址', '🔒 Reserved'),
+            bot: t('🤖 搜索引擎', '🤖 Search Bot'),
+        };
+        return key ? labels[key] : raw;
     }
 
     // ── 地理位置 & 地址 ──
@@ -472,11 +487,11 @@
             { label: t('组织/ISP', 'Organization'), keys: ['organization', 'isp'] },
             { label: t('主机名', 'Hostname'), keys: ['hostname'] },
             { label: t('时区', 'Timezone'), keys: ['timezone'] },
-            { label: t('网络类型', 'Network'), keys: ['usage_type', 'connection_type'] },
+            { label: t('网络类型', 'Network'), keys: ['usage_type', 'connection_type'], format: formatUsageType },
             { label: t('域名', 'Domain'), keys: ['domain'] },
             { label: t('邮编', 'Postal'), keys: ['postal'] },
             { label: t('大洲', 'Continent'), keys: ['continent'] },
-            { label: t('IP 类型', 'Type'), keys: ['ip_type'] },
+            { label: t('IP 类型', 'Type'), keys: ['ip_type'], format: formatUsageType },
         ];
 
         const sourceDataMap = {};
@@ -489,7 +504,9 @@
                 const data = sourceDataMap[s.key];
                 if (!data) return null;
                 for (const k of row.keys) {
-                    if (data[k] != null && data[k] !== '') return String(data[k]);
+                    if (data[k] != null && data[k] !== '') {
+                        return row.format ? row.format(data[k]) : String(data[k]);
+                    }
                 }
                 return null;
             });
