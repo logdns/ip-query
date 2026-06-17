@@ -148,6 +148,14 @@ function isValidIP(ip) {
     return ipv6.test(ip);
 }
 
+// IP 版本 (IPv4 / IPv6) — 始终可从地址本身推导, 不依赖数据源
+function ipVersion(ip) {
+    if (!ip) return null;
+    if (ip.includes(':')) return 'IPv6';
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return 'IPv4';
+    return null;
+}
+
 // ═══════════════════════════════════════════
 // 数据源1: AbuseIPDB
 // ═══════════════════════════════════════════
@@ -171,6 +179,7 @@ async function fetchAbuseIPDB(ip) {
                 latitude: null, longitude: null, timezone: null, asn: null,
                 organization: null, isp: d.isp || null,
                 hostname: d.hostnames?.[0] || null,
+                ip_type: ipVersion(d.ipAddress || ip),
                 is_vpn: null, is_proxy: null, is_tor: d.isTor || null,
                 is_threat: d.totalReports > 0, continent: null, postal: null,
                 domain: d.domain || null, usage_type: d.usageType || null,
@@ -218,7 +227,13 @@ async function fetchIplocate(ip) {
                 connection_type: d.asn?.type || null,
                 isp: d.company?.name || d.asn?.name || null,
                 hostname: null,
-                ip_type: null,
+                ip_type: (() => {
+                    let v = ipVersion(d.ip || ip);
+                    const flags = [];
+                    if (d.is_anycast) flags.push('Anycast');
+                    if (d.is_satellite) flags.push('Satellite');
+                    return v && flags.length ? `${v} · ${flags.join('/')}` : v;
+                })(),
                 is_vpn: d.privacy?.is_vpn ?? null,
                 is_proxy: d.privacy?.is_proxy ?? null,
                 is_tor: d.privacy?.is_tor ?? null,
@@ -276,7 +291,7 @@ async function fetchIp2location(ip) {
                 connection_type: d.as_info?.as_usage_type || null,
                 isp: d.isp || d.as || null,
                 hostname: null,
-                ip_type: d.address_type || null,
+                ip_type: d.address_type || ipVersion(d.ip || ip),
                 is_vpn: proxy.is_vpn ?? null,
                 is_proxy: d.is_proxy ?? null,
                 is_tor: proxy.is_tor ?? null,

@@ -294,8 +294,16 @@
             usage_type: a.usage_type || d.usage_type || p.usage_type || d.connection_type || p.connection_type,
             latitude: d.latitude ?? p.latitude,
             longitude: d.longitude ?? p.longitude,
-            ip_type: d.ip_type || p.ip_type || null,
+            ip_type: d.ip_type || p.ip_type || a.ip_type || ipVersion(d.ip || p.ip || a.ip),
         };
+    }
+
+    // IP 版本 (IPv4 / IPv6) — 兜底, 始终可从地址推导
+    function ipVersion(ip) {
+        if (!ip) return null;
+        if (ip.includes(':')) return 'IPv6';
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return 'IPv4';
+        return null;
     }
 
     // ── 总览卡片 ──
