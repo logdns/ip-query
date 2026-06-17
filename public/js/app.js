@@ -294,7 +294,6 @@
             usage_type: a.usage_type || d.usage_type || p.usage_type || d.connection_type || p.connection_type,
             latitude: d.latitude ?? p.latitude,
             longitude: d.longitude ?? p.longitude,
-            ip_type: d.ip_type || p.ip_type || a.ip_type || null,
         };
     }
 
@@ -310,7 +309,6 @@
             { label: 'ASN', value: best.asn || 'N/A', accent: true },
             { label: t('时区', 'Timezone'), value: best.timezone || 'N/A' },
             { label: t('网络类型', 'Network'), value: formatUsageType(best.usage_type) || 'N/A', highlight: true },
-            { label: t('IP 类型', 'IP Type'), value: formatUsageType(best.ip_type) || 'N/A' },
         ];
 
         resultOverview.innerHTML = cards.map(c => `
@@ -491,7 +489,6 @@
             { label: t('域名', 'Domain'), keys: ['domain'] },
             { label: t('邮编', 'Postal'), keys: ['postal'] },
             { label: t('大洲', 'Continent'), keys: ['continent'] },
-            { label: t('IP 类型', 'Type'), keys: ['ip_type'], format: formatUsageType },
         ];
 
         const sourceDataMap = {};
