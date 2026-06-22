@@ -13,7 +13,7 @@
     const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
 
     function initAdminTheme() {
-        const saved = localStorage.getItem('ip-query-theme') || 'dark';
+        const saved = localStorage.getItem('ip-query-theme') || 'light';
         document.body.setAttribute('data-theme', saved);
         if (themeIcon) themeIcon.textContent = saved === 'dark' ? '🌙' : '🌞';
     }
@@ -239,6 +239,7 @@
             const res = await api('PUT', '/api/admin/settings', data);
 
             if (res.error) throw new Error(res.message);
+            if (res.settings) populateFields(res.settings);
 
             showStatus('✅ 保存成功！设置已实时生效', 'success');
         } catch (err) {

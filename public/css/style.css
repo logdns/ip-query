@@ -1182,17 +1182,30 @@ body::before {
 .ad-slot {
     width: 100%;
     margin: var(--space-lg) auto;
+    padding: 14px 18px;
+    min-height: 48px;
     text-align: center;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
 }
 
 .ad-slot:empty {
     display: none;
 }
 
+[data-theme="dark"] .ad-slot {
+    background: rgba(15, 23, 42, 0.72);
+}
+
 .ad-slot iframe,
 .ad-slot img,
 .ad-slot ins {
     max-width: 100%;
+    vertical-align: middle;
 }
 
 .ad-slot-top {

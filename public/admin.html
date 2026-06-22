@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/css/admin.css">
 </head>
 
-<body data-theme="dark">
+<body data-theme="light">
 
     <!-- 主题切换 -->
     <button class="theme-toggle" id="themeToggle" title="切换主题 / Toggle Theme">
@@ -58,54 +58,54 @@
         <!-- 内容区 -->
         <main class="admin-main">
             <!-- 导航标签 -->
-            <nav class="admin-tabs" id="adminTabs">
-                <button class="tab-btn active" data-tab="seo">
+            <nav class="admin-tabs" id="adminTabs" aria-label="后台设置导航">
+                <button class="tab-btn active" data-tab="seo" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    网站 SEO
+                    <span>SEO</span>
                 </button>
-                <button class="tab-btn" data-tab="api">
+                <button class="tab-btn" data-tab="api" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
-                    API 密钥
+                    <span>密钥</span>
                 </button>
-                <button class="tab-btn" data-tab="endpoints">
+                <button class="tab-btn" data-tab="endpoints" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
                         <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
                     </svg>
-                    接口地址
+                    <span>接口</span>
                 </button>
-                <button class="tab-btn" data-tab="map">
+                <button class="tab-btn" data-tab="map" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                     </svg>
-                    地图设置
+                    <span>地图</span>
                 </button>
-                <button class="tab-btn" data-tab="security">
+                <button class="tab-btn" data-tab="security" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    安全设置
+                    <span>安全</span>
                 </button>
-                <button class="tab-btn" data-tab="ads">
+                <button class="tab-btn" data-tab="ads" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="5" width="18" height="14" rx="2" />
                         <path d="M7 15l2.5-6 2.5 6M8 13h3" />
                         <path d="M15 9h2a2 2 0 010 4h-2V9z" />
                     </svg>
-                    广告设置
+                    <span>广告</span>
                 </button>
-                <button class="tab-btn" data-tab="update">
+                <button class="tab-btn" data-tab="update" type="button">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16" />
                     </svg>
-                    在线更新
+                    <span>更新</span>
                 </button>
             </nav>
 
@@ -300,25 +300,25 @@
             <section class="tab-panel" id="panel-ads">
                 <div class="panel-header">
                     <h2 class="panel-title">前台广告位设置</h2>
-                    <p class="panel-desc">配置前台广告代码。Head 广告位会注入到页面 head 内，其余广告位会展示在前台对应位置。</p>
+                    <p class="panel-desc">配置前台广告代码。Head 是脚本注入位，不在页面中显示；顶部、搜索区、结果区和底部是可见广告位。</p>
                 </div>
                 <div class="panel-body">
                     <div class="info-card">
                         <div class="info-icon">ℹ️</div>
                         <div class="info-text">
-                            支持 HTML/JS 广告代码。请只粘贴可信广告平台代码，错误脚本可能影响前台页面加载。
+                            支持 HTML/JS 广告代码。可见广告位支持普通文字、图片、iframe 和广告平台脚本；保存后刷新前台即可生效。
                         </div>
                     </div>
 
                     <div class="api-section">
                         <div class="api-section-header">
-                            <h3 class="api-section-title">Head 广告位</h3>
-                            <span class="api-section-hint">注入 &lt;head&gt;，适合统计、验证、广告平台脚本</span>
+                            <h3 class="api-section-title">Head 脚本位</h3>
+                            <span class="api-section-hint">不可见，注入 &lt;head&gt;，适合统计、验证、广告平台初始化脚本</span>
                         </div>
-                        <label class="check-row"><input type="checkbox" id="adHeadEnabled"> 启用 Head 广告位</label>
+                        <label class="check-row"><input type="checkbox" id="adHeadEnabled"> 启用 Head 脚本位</label>
                         <div class="form-group">
                             <textarea id="adHeadCode" class="form-textarea form-mono" rows="5"
-                                placeholder="粘贴 head 内广告/统计代码"></textarea>
+                                placeholder="粘贴统计、验证或广告平台初始化代码。这里不会作为横幅显示。"></textarea>
                         </div>
                     </div>
 

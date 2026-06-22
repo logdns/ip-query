@@ -192,7 +192,7 @@
     // ═══════════════════════════════════════════
     async function loadAds() {
         try {
-            const res = await fetch('/api/ads');
+            const res = await fetch('/api/ads', { cache: 'no-store' });
             if (!res.ok) return;
             const ads = await res.json();
             for (const [key, el] of Object.entries(adSlots)) {
@@ -201,12 +201,27 @@
                     if (el) el.classList.add('hidden');
                     continue;
                 }
-                el.innerHTML = ad.code;
+                renderAdCode(el, ad.code);
                 el.classList.remove('hidden');
             }
         } catch {
             // 广告加载失败不影响主功能。
         }
+    }
+
+    function renderAdCode(el, code) {
+        el.innerHTML = code;
+
+        // Scripts inserted through innerHTML do not execute in browsers.
+        // Recreate them so common ad platform snippets can render normally.
+        el.querySelectorAll('script').forEach((oldScript) => {
+            const newScript = document.createElement('script');
+            for (const attr of oldScript.attributes) {
+                newScript.setAttribute(attr.name, attr.value);
+            }
+            newScript.textContent = oldScript.textContent;
+            oldScript.replaceWith(newScript);
+        });
     }
 
     // ═══════════════════════════════════════════
