@@ -155,6 +155,19 @@
 
         // Security
         $('#adminPassword').value = data.admin?.password || '';
+
+        // Ads
+        const ads = data.ads || {};
+        $('#adHeadEnabled').checked = !!ads.head?.enabled;
+        $('#adHeadCode').value = ads.head?.code || '';
+        $('#adTopEnabled').checked = !!ads.top?.enabled;
+        $('#adTopCode').value = ads.top?.code || '';
+        $('#adSearchEnabled').checked = !!ads.search?.enabled;
+        $('#adSearchCode').value = ads.search?.code || '';
+        $('#adResultEnabled').checked = !!ads.result?.enabled;
+        $('#adResultCode').value = ads.result?.code || '';
+        $('#adFooterEnabled').checked = !!ads.footer?.enabled;
+        $('#adFooterCode').value = ads.footer?.code || '';
     }
 
     // ═══════════════════════════════════════════
@@ -181,6 +194,28 @@
             },
             admin: {
                 password: $('#adminPassword').value.trim(),
+            },
+            ads: {
+                head: {
+                    enabled: $('#adHeadEnabled').checked,
+                    code: $('#adHeadCode').value,
+                },
+                top: {
+                    enabled: $('#adTopEnabled').checked,
+                    code: $('#adTopCode').value,
+                },
+                search: {
+                    enabled: $('#adSearchEnabled').checked,
+                    code: $('#adSearchCode').value,
+                },
+                result: {
+                    enabled: $('#adResultEnabled').checked,
+                    code: $('#adResultCode').value,
+                },
+                footer: {
+                    enabled: $('#adFooterEnabled').checked,
+                    code: $('#adFooterCode').value,
+                },
             },
         };
     }

@@ -26,16 +26,23 @@ const PORT = process.env.PORT || 3008;
 
 app.use(express.json());
 
+function renderIndexHtml(html) {
+    const s = settings.get();
+    const seo = s.seo || {};
+    const headAd = s.ads?.head?.enabled ? (s.ads.head.code || '') : '';
+    return html
+        .replace(/\{\{SEO_TITLE\}\}/g, seo.title || 'IP 信息查询系统')
+        .replace(/\{\{SEO_DESC\}\}/g, seo.description || '多数据源 IP 地理位置查询系统')
+        .replace(/\{\{SEO_KEYWORDS\}\}/g, seo.keywords || 'IP查询,IP地址,地理位置,GeoIP')
+        .replace(/\{\{HEAD_AD\}\}/g, headAd);
+}
+
 // ── SEO 模板渲染: 替换 index.html 中的 SEO 占位符 ──
 app.get(['/', '/index.html'], (req, res) => {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
         if (err) return res.status(500).send('Internal Server Error');
-        const seo = settings.get().seo || {};
-        const rendered = html
-            .replace('{{SEO_TITLE}}', seo.title || 'IP 信息查询系统')
-            .replace('{{SEO_DESC}}', seo.description || '多数据源 IP 地理位置查询系统')
-            .replace('{{SEO_KEYWORDS}}', seo.keywords || 'IP查询,IP地址,地理位置,GeoIP');
+        const rendered = renderIndexHtml(html);
         res.set('Content-Type', 'text/html');
         res.send(rendered);
     });
@@ -411,6 +418,21 @@ app.get('/api/seo', (req, res) => {
 });
 
 // ═══════════════════════════════════════════
+// API: 获取前台广告配置 (公开)
+// ═══════════════════════════════════════════
+app.get('/api/ads', (req, res) => {
+    const ads = settings.get().ads || {};
+    const visible = {};
+    for (const key of ['top', 'search', 'result', 'footer']) {
+        visible[key] = {
+            enabled: !!ads[key]?.enabled,
+            code: ads[key]?.code || '',
+        };
+    }
+    res.json(visible);
+});
+
+// ═══════════════════════════════════════════
 // 管理后台: 登录
 // ═══════════════════════════════════════════
 app.post('/api/admin/login', (req, res) => {
@@ -682,13 +704,8 @@ app.get('/admin', (req, res) => {
 // 页面路由: 首页 (动态 SEO 注入)
 // ═══════════════════════════════════════════
 app.get('/', (req, res) => {
-    const s = settings.get();
     let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-    html = html
-        .replace(/\{\{SEO_TITLE\}\}/g, s.seo?.title || 'IP 信息查询系统')
-        .replace(/\{\{SEO_DESC\}\}/g, s.seo?.description || '')
-        .replace(/\{\{SEO_KEYWORDS\}\}/g, s.seo?.keywords || '');
-    res.type('html').send(html);
+    res.type('html').send(renderIndexHtml(html));
 });
 
 // ═══════════════════════════════════════════

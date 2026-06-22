@@ -692,6 +692,27 @@ body::before {
     font-weight: 600;
 }
 
+/* ── Ad Settings ── */
+.check-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.check-row input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-primary);
+}
+
 /* ── Utilities ── */
 .hidden {
     display: none !important;

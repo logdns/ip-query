@@ -30,6 +30,12 @@
     const compTableBody = $('#compTableBody');
     const securityGrid = $('#securityGrid');
     const bgParticles = $('#bgParticles');
+    const adSlots = {
+        top: $('#adTop'),
+        search: $('#adSearch'),
+        result: $('#adResult'),
+        footer: $('#adFooter'),
+    };
 
     let detectedIP = null;
     let leafletMap = null;
@@ -178,6 +184,28 @@
         } catch {
             browserInfo.textContent = navigator.userAgent.substring(0, 60) + '...';
             uaRaw.textContent = navigator.userAgent;
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // 广告位渲染
+    // ═══════════════════════════════════════════
+    async function loadAds() {
+        try {
+            const res = await fetch('/api/ads');
+            if (!res.ok) return;
+            const ads = await res.json();
+            for (const [key, el] of Object.entries(adSlots)) {
+                const ad = ads?.[key];
+                if (!el || !ad?.enabled || !ad.code) {
+                    if (el) el.classList.add('hidden');
+                    continue;
+                }
+                el.innerHTML = ad.code;
+                el.classList.remove('hidden');
+            }
+        } catch {
+            // 广告加载失败不影响主功能。
         }
     }
 
@@ -591,6 +619,7 @@
         initLang();
         initTheme();
         createParticles();
+        loadAds();
         detectMyIP();
         detectBrowser();
     }

@@ -1178,18 +1178,39 @@ body::before {
     font-weight: 500;
 }
 
-.footer-github {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.85rem;
-    transition: color var(--duration-fast);
+/* ── Ad Slots ── */
+.ad-slot {
+    width: 100%;
+    margin: var(--space-lg) auto;
+    text-align: center;
 }
 
-.footer-github:hover {
-    color: var(--text-primary);
+.ad-slot:empty {
+    display: none;
+}
+
+.ad-slot iframe,
+.ad-slot img,
+.ad-slot ins {
+    max-width: 100%;
+}
+
+.ad-slot-top {
+    margin-top: 0;
+}
+
+.ad-slot-search {
+    margin-top: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.ad-slot-result {
+    margin-top: 0;
+    margin-bottom: var(--space-xl);
+}
+
+.ad-slot-footer {
+    margin-bottom: var(--space-lg);
 }
 
 /* ── Browser Info / Detect Grid ── */
