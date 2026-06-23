@@ -8,7 +8,7 @@
     const $ = (sel) => document.querySelector(sel);
     const themeToggle = $('#themeToggle');
     const themeIcon = $('.theme-icon');
-    const langToggle = $('#langToggle');
+    const langSelect = $('#langSelect');
     const ipInput = $('#ipInput');
     const btnSearch = $('#btnSearch');
     const btnClear = $('#btnClear');
@@ -40,60 +40,136 @@
     let detectedIP = null;
     let leafletMap = null;
     let mapMarker = null;
-    let currentLang = 'zh';
+    let currentLang = 'en';
 
     // ═══════════════════════════════════════════
     // 多语言 i18n
     // ═══════════════════════════════════════════
-    function t(zh, en) {
-        return currentLang === 'zh' ? zh : en;
+    const i18n = {
+        '无法检测': { 'zh-Hant': '無法偵測', ja: '検出不可' },
+        '检测失败': { 'zh-Hant': '偵測失敗', ja: '検出に失敗しました' },
+        '网络请求失败: ': { 'zh-Hant': '網路請求失敗: ', ja: 'ネットワーク要求に失敗しました: ' },
+        'IP 地址': { 'zh-Hant': 'IP 位址', ja: 'IP アドレス' },
+        '国家/地区': { 'zh-Hant': '國家/地區', ja: '国/地域' },
+        '省/州': { 'zh-Hant': '省/州', ja: '地域/州' },
+        '城市': { 'zh-Hant': '城市', ja: '都市' },
+        '运营商': { 'zh-Hant': '營運商', ja: 'ISP' },
+        '时区': { 'zh-Hant': '時區', ja: 'タイムゾーン' },
+        '网络类型': { 'zh-Hant': '網路類型', ja: 'ネットワーク種別' },
+        '🏢 数据中心/主机': { 'zh-Hant': '🏢 資料中心/主機', ja: '🏢 データセンター/ホスティング' },
+        '🌐 CDN 节点': { 'zh-Hant': '🌐 CDN 節點', ja: '🌐 CDN' },
+        '📱 移动网络': { 'zh-Hant': '📱 行動網路', ja: '📱 モバイル' },
+        '🏠 家庭宽带': { 'zh-Hant': '🏠 家用寬頻', ja: '🏠 住宅 ISP' },
+        '🏢 商业/企业': { 'zh-Hant': '🏢 商業/企業', ja: '🏢 ビジネス' },
+        '🎓 教育/科研': { 'zh-Hant': '🎓 教育/科研', ja: '🎓 教育/研究' },
+        '🏛️ 政府机构': { 'zh-Hant': '🏛️ 政府機構', ja: '🏛️ 政府機関' },
+        '🪖 军事网络': { 'zh-Hant': '🪖 軍事網路', ja: '🪖 軍事ネットワーク' },
+        '🏛️ 组织机构': { 'zh-Hant': '🏛️ 組織機構', ja: '🏛️ 組織' },
+        '🔒 保留地址': { 'zh-Hant': '🔒 保留位址', ja: '🔒 予約アドレス' },
+        '🤖 搜索引擎': { 'zh-Hant': '🤖 搜尋引擎', ja: '🤖 検索ボット' },
+        '纬度': { 'zh-Hant': '緯度', ja: '緯度' },
+        '经度': { 'zh-Hant': '經度', ja: '経度' },
+        '正在查询街道地址...': { 'zh-Hant': '正在查詢街道地址...', ja: '住所を検索中...' },
+        '地址查询失败': { 'zh-Hant': '地址查詢失敗', ja: '住所検索に失敗しました' },
+        '国家': { 'zh-Hant': '國家', ja: '国' },
+        '区/县': { 'zh-Hant': '區/縣', ja: '地区' },
+        '街道': { 'zh-Hant': '街道', ja: '通り' },
+        '邮编': { 'zh-Hant': '郵遞區號', ja: '郵便番号' },
+        '完整地址': { 'zh-Hant': '完整地址', ja: '完全な住所' },
+        '数据源1': { 'zh-Hant': '資料來源1', ja: 'データソース1' },
+        '数据源2': { 'zh-Hant': '資料來源2', ja: 'データソース2' },
+        '数据源3': { 'zh-Hant': '資料來源3', ja: 'データソース3' },
+        '所有数据源均查询失败': { 'zh-Hant': '所有資料來源均查詢失敗', ja: 'すべてのデータソースで失敗しました' },
+        '字段': { 'zh-Hant': '欄位', ja: '項目' },
+        '国家代码': { 'zh-Hant': '國家代碼', ja: 'コード' },
+        '地区/省份': { 'zh-Hant': '地區/省份', ja: '地域' },
+        '组织/ISP': { 'zh-Hant': '組織/ISP', ja: '組織/ISP' },
+        '主机名': { 'zh-Hant': '主機名稱', ja: 'ホスト名' },
+        '域名': { 'zh-Hant': '網域', ja: 'ドメイン' },
+        '大洲': { 'zh-Hant': '洲', ja: '大陸' },
+        '未知': { 'zh-Hant': '未知', ja: '不明' },
+        '部分数据源不可用': { 'zh-Hant': '部分資料來源不可用', ja: '一部のデータソースは利用できません' },
+        '代理': { 'zh-Hant': '代理', ja: 'プロキシ' },
+        '威胁': { 'zh-Hant': '威脅', ja: '脅威' },
+        '滥用评分': { 'zh-Hant': '濫用評分', ja: '不正利用スコア' },
+        '举报次数': { 'zh-Hant': '通報次數', ja: '報告数' },
+        '欺诈评分': { 'zh-Hant': '詐欺評分', ja: '不正スコア' },
+        '次': { 'zh-Hant': '次', ja: '回' },
+        '暂无数据': { 'zh-Hant': '暫無資料', ja: 'データなし' },
+        '是': { 'zh-Hant': '是', ja: 'はい' },
+        '否': { 'zh-Hant': '否', ja: 'いいえ' },
+        '来源': { 'zh-Hant': '來源', ja: 'ソース' },
+    };
+
+    function t(zh, en, ja, zhHant) {
+        if (currentLang === 'zh') return zh;
+        if (currentLang === 'ja') return ja || i18n[zh]?.ja || en;
+        if (currentLang === 'zh-Hant') return zhHant || i18n[zh]?.['zh-Hant'] || zh;
+        return en;
     }
 
     function initLang() {
-        currentLang = localStorage.getItem('ip-query-lang') || 'zh';
+        currentLang = normalizeLang(localStorage.getItem('ip-query-lang') || 'en');
         document.body.setAttribute('data-lang', currentLang);
-        updateLangToggleLabel();
+        document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'zh-Hant' ? 'zh-Hant' : currentLang;
+        if (langSelect) langSelect.value = currentLang;
         updatePlaceholder();
     }
 
-    function updateLangToggleLabel() {
-        const label = langToggle.querySelector('.lang-label');
-        if (label) label.textContent = currentLang === 'zh' ? '中/EN' : 'EN/中';
+    function normalizeLang(lang) {
+        return ['en', 'zh', 'zh-Hant', 'ja'].includes(lang) ? lang : 'en';
     }
 
     function updatePlaceholder() {
         if (ipInput) {
-            const key = currentLang === 'zh' ? 'data-placeholder-zh' : 'data-placeholder-en';
+            const key = `data-placeholder-${currentLang}`;
             ipInput.placeholder = ipInput.getAttribute(key) || '';
         }
     }
 
-    langToggle.addEventListener('click', () => {
-        currentLang = currentLang === 'zh' ? 'en' : 'zh';
-        document.body.setAttribute('data-lang', currentLang);
-        localStorage.setItem('ip-query-lang', currentLang);
-        updateLangToggleLabel();
-        updatePlaceholder();
-        // Re-render dynamic content if results are visible
-        if (lastResultData) renderResults(lastResultData);
-    });
+    if (langSelect) {
+        langSelect.addEventListener('change', () => {
+            currentLang = normalizeLang(langSelect.value);
+            document.body.setAttribute('data-lang', currentLang);
+            document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'zh-Hant' ? 'zh-Hant' : currentLang;
+            localStorage.setItem('ip-query-lang', currentLang);
+            updatePlaceholder();
+            if (lastResultData) renderResults(lastResultData);
+        });
+    }
 
     // ═══════════════════════════════════════════
     // 主题切换
     // ═══════════════════════════════════════════
     function initTheme() {
-        const saved = localStorage.getItem('ip-query-theme') || 'light';
-        document.body.setAttribute('data-theme', saved);
-        themeIcon.textContent = saved === 'dark' ? '🌙' : '🌞';
+        const mode = localStorage.getItem('ip-query-theme-mode');
+        const saved = localStorage.getItem('ip-query-theme');
+        const theme = mode === 'manual' && saved ? saved : getAutoTheme();
+        applyTheme(theme);
+        setInterval(() => {
+            if (localStorage.getItem('ip-query-theme-mode') !== 'manual') {
+                applyTheme(getAutoTheme());
+            }
+        }, 60 * 1000);
+    }
+
+    function getAutoTheme() {
+        const hour = new Date().getHours();
+        return hour >= 18 || hour < 6 ? 'dark' : 'light';
+    }
+
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        themeIcon.textContent = theme === 'dark' ? '🌙' : '🌞';
+        if (leafletMap) updateMapTiles();
     }
 
     themeToggle.addEventListener('click', () => {
         const current = document.body.getAttribute('data-theme');
         const next = current === 'dark' ? 'light' : 'dark';
-        document.body.setAttribute('data-theme', next);
-        themeIcon.textContent = next === 'dark' ? '🌙' : '🌞';
+        applyTheme(next);
+        localStorage.setItem('ip-query-theme-mode', 'manual');
         localStorage.setItem('ip-query-theme', next);
-        if (leafletMap) updateMapTiles();
     });
 
     // ═══════════════════════════════════════════

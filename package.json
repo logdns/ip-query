@@ -1,6 +1,6 @@
 {
   "name": "ip-query",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "多源 IP 信息查询系统",
   "main": "server.js",
   "scripts": {

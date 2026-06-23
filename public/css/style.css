@@ -199,13 +199,30 @@ body::before {
     }
 }
 
-/* ── Language Toggle (中/EN) ── */
-[data-lang="zh"] .en {
+.zh,
+.en,
+.zh-Hant,
+.ja {
     display: none !important;
 }
 
-[data-lang="en"] .zh {
-    display: none !important;
+[data-lang="zh"] .zh,
+[data-lang="en"] .en,
+[data-lang="zh-Hant"] .zh-Hant,
+[data-lang="ja"] .ja {
+    display: inline !important;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* ── Top Controls (Lang + Theme) ── */
@@ -219,9 +236,8 @@ body::before {
     gap: var(--space-sm);
 }
 
-.lang-toggle {
+.lang-control {
     height: 44px;
-    padding: 0 16px;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-full);
     background: var(--bg-card);
@@ -235,17 +251,32 @@ body::before {
     font-family: var(--font-sans);
 }
 
-.lang-toggle:hover {
+.lang-control:hover {
     transform: scale(1.05);
     box-shadow: var(--shadow-lg);
     border-color: var(--border-focus);
 }
 
-.lang-label {
+.lang-select {
+    height: 42px;
+    min-width: 124px;
+    padding: 0 34px 0 16px;
+    border: 0;
+    outline: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-primary);
     font-size: 0.82rem;
     font-weight: 700;
-    color: var(--text-primary);
+    font-family: var(--font-sans);
     letter-spacing: 0.02em;
+    cursor: pointer;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 18px) 18px, calc(100% - 13px) 18px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
 }
 
 .theme-toggle {
@@ -1354,13 +1385,16 @@ body::before {
         right: var(--space-md);
     }
 
-    .lang-toggle {
+    .lang-control {
         height: 36px;
-        padding: 0 10px;
     }
 
-    .lang-label {
+    .lang-select {
+        height: 34px;
+        min-width: 104px;
+        padding: 0 28px 0 12px;
         font-size: 0.75rem;
+        background-position: calc(100% - 15px) 15px, calc(100% - 10px) 15px;
     }
 
     .theme-toggle {

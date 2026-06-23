@@ -13,17 +13,33 @@
     const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
 
     function initAdminTheme() {
-        const saved = localStorage.getItem('ip-query-theme') || 'light';
-        document.body.setAttribute('data-theme', saved);
-        if (themeIcon) themeIcon.textContent = saved === 'dark' ? '🌙' : '🌞';
+        const mode = localStorage.getItem('ip-query-theme-mode');
+        const saved = localStorage.getItem('ip-query-theme');
+        const theme = mode === 'manual' && saved ? saved : getAutoTheme();
+        applyAdminTheme(theme);
+        setInterval(() => {
+            if (localStorage.getItem('ip-query-theme-mode') !== 'manual') {
+                applyAdminTheme(getAutoTheme());
+            }
+        }, 60 * 1000);
+    }
+
+    function getAutoTheme() {
+        const hour = new Date().getHours();
+        return hour >= 18 || hour < 6 ? 'dark' : 'light';
+    }
+
+    function applyAdminTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        if (themeIcon) themeIcon.textContent = theme === 'dark' ? '🌙' : '🌞';
     }
 
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
             const current = document.body.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
-            document.body.setAttribute('data-theme', next);
-            if (themeIcon) themeIcon.textContent = next === 'dark' ? '🌙' : '🌞';
+            applyAdminTheme(next);
+            localStorage.setItem('ip-query-theme-mode', 'manual');
             localStorage.setItem('ip-query-theme', next);
         });
     }
@@ -91,7 +107,7 @@
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                loginError.textContent = data.message || '密码错误';
+                loginError.textContent = data.message || 'Incorrect password';
                 loginError.classList.remove('hidden');
                 return;
             }
@@ -101,7 +117,7 @@
             loginPassword.value = '';
             checkAuth();
         } catch (err) {
-            loginError.textContent = '登录失败: ' + err.message;
+            loginError.textContent = 'Sign in failed: ' + err.message;
             loginError.classList.remove('hidden');
         }
     });

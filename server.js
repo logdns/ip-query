@@ -443,7 +443,7 @@ app.post('/api/admin/login', (req, res) => {
         adminTokens.set(token, { createdAt: Date.now() });
         return res.json({ success: true, token });
     }
-    res.status(401).json({ error: true, message: '密码错误' });
+    res.status(401).json({ error: true, message: 'Incorrect password' });
 });
 
 // ═══════════════════════════════════════════
