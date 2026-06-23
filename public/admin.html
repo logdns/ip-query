@@ -13,13 +13,11 @@
 
 <body data-theme="light">
 
-    <!-- 主题切换 -->
-    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
-        <span class="theme-icon">🌙</span>
-    </button>
-
     <!-- 登录遮罩 -->
     <div class="login-overlay" id="loginOverlay">
+        <button class="theme-toggle theme-toggle-login" title="Toggle theme">
+            <span class="theme-icon">🌙</span>
+        </button>
         <div class="login-card">
             <div class="login-icon">🔐</div>
             <h1 class="login-title">Admin Panel</h1>
@@ -53,6 +51,9 @@
             <div class="admin-header-right">
                 <a href="/" class="btn-ghost">← 返回前台</a>
                 <button class="btn-ghost btn-logout" id="btnLogout">登出</button>
+                <button class="theme-toggle theme-toggle-header" title="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
             </div>
         </header>
 

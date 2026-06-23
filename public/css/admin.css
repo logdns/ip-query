@@ -147,6 +147,23 @@ body::before {
     line-height: 1;
 }
 
+.theme-toggle-header {
+    position: static;
+    z-index: auto;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    box-shadow: none;
+    background: transparent;
+}
+
+.theme-toggle-header:hover {
+    transform: none;
+    background: var(--bg-input);
+    box-shadow: none;
+    border-color: var(--border-focus);
+}
+
 /* ── Login Overlay ── */
 .login-overlay {
     position: fixed;
@@ -763,11 +780,18 @@ body::before {
         padding: 32px 24px;
     }
 
-    .theme-toggle {
+    .theme-toggle-login {
         top: 12px;
         right: 12px;
         width: 38px;
         height: 38px;
+    }
+
+    .theme-toggle-header {
+        position: static;
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
     }
 }
 

@@ -9,8 +9,8 @@
     const $$ = (sel) => document.querySelectorAll(sel);
 
     // ── Theme Toggle ──
-    const themeToggle = $('#themeToggle');
-    const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
+    const themeToggles = $$('.theme-toggle');
+    const themeIcons = $$('.theme-icon');
 
     function initAdminTheme() {
         const mode = localStorage.getItem('ip-query-theme-mode');
@@ -31,18 +31,20 @@
 
     function applyAdminTheme(theme) {
         document.body.setAttribute('data-theme', theme);
-        if (themeIcon) themeIcon.textContent = theme === 'dark' ? '🌙' : '🌞';
+        themeIcons.forEach(icon => {
+            icon.textContent = theme === 'dark' ? '🌙' : '🌞';
+        });
     }
 
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
+    themeToggles.forEach((toggle) => {
+        toggle.addEventListener('click', () => {
             const current = document.body.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
             applyAdminTheme(next);
             localStorage.setItem('ip-query-theme-mode', 'manual');
             localStorage.setItem('ip-query-theme', next);
         });
-    }
+    });
 
     initAdminTheme();
 
