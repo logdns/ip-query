@@ -152,9 +152,11 @@
     // ═══════════════════════════════════════════
     function populateFields(data) {
         // SEO
-        $('#seoTitle').value = data.seo?.title || '';
-        $('#seoDesc').value = data.seo?.description || '';
-        $('#seoKeywords').value = data.seo?.keywords || '';
+        const seo = normalizeSeo(data.seo || {});
+        fillSeoFields('En', seo.en);
+        fillSeoFields('Zh', seo.zh);
+        fillSeoFields('ZhHant', seo['zh-Hant']);
+        fillSeoFields('Ja', seo.ja);
 
         // API Keys
         const abuseKeys = data.apiKeys?.abuseipdb || [];
@@ -192,11 +194,18 @@
     // 收集表单
     // ═══════════════════════════════════════════
     function collectFields() {
+        const localizedSeo = {
+            en: readSeoFields('En'),
+            zh: readSeoFields('Zh'),
+            'zh-Hant': readSeoFields('ZhHant'),
+            ja: readSeoFields('Ja'),
+        };
         return {
             seo: {
-                title: $('#seoTitle').value.trim(),
-                description: $('#seoDesc').value.trim(),
-                keywords: $('#seoKeywords').value.trim(),
+                title: localizedSeo.en.title,
+                description: localizedSeo.en.description,
+                keywords: localizedSeo.en.keywords,
+                localized: localizedSeo,
             },
             apiKeys: {
                 abuseipdb: $('#apiAbuseKeys').value.split('\n').map(s => s.trim()).filter(Boolean),
@@ -235,6 +244,34 @@
                     code: $('#adFooterCode').value,
                 },
             },
+        };
+    }
+
+    function normalizeSeo(seo) {
+        const localized = seo.localized || {};
+        return {
+            en: localized.en || {
+                title: seo.title || '',
+                description: seo.description || '',
+                keywords: seo.keywords || '',
+            },
+            zh: localized.zh || { title: '', description: '', keywords: '' },
+            'zh-Hant': localized['zh-Hant'] || { title: '', description: '', keywords: '' },
+            ja: localized.ja || { title: '', description: '', keywords: '' },
+        };
+    }
+
+    function fillSeoFields(prefix, seo) {
+        $(`#seo${prefix}Title`).value = seo?.title || '';
+        $(`#seo${prefix}Desc`).value = seo?.description || '';
+        $(`#seo${prefix}Keywords`).value = seo?.keywords || '';
+    }
+
+    function readSeoFields(prefix) {
+        return {
+            title: $(`#seo${prefix}Title`).value.trim(),
+            description: $(`#seo${prefix}Desc`).value.trim(),
+            keywords: $(`#seo${prefix}Keywords`).value.trim(),
         };
     }
 

@@ -115,21 +115,81 @@
             <section class="tab-panel active" id="panel-seo">
                 <div class="panel-header">
                     <h2 class="panel-title">网站 SEO 设置</h2>
-                    <p class="panel-desc">配置网站标题、描述和关键词，优化搜索引擎收录</p>
+                    <p class="panel-desc">按语言配置网站标题、描述和关键词，前台会根据用户选择的语言自动显示。</p>
                 </div>
                 <div class="panel-body">
-                    <div class="form-group">
-                        <label class="form-label" for="seoTitle">网站标题</label>
-                        <input type="text" id="seoTitle" class="form-input" placeholder="IP 信息查询系统">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="seoDesc">网站描述 (Meta Description)</label>
-                        <textarea id="seoDesc" class="form-textarea" rows="3"
-                            placeholder="多数据源 IP 地理位置查询系统..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="seoKeywords">关键词 (逗号分隔)</label>
-                        <input type="text" id="seoKeywords" class="form-input" placeholder="IP查询,IP地址,地理位置,GeoIP">
+                    <div class="seo-language-grid">
+                        <div class="seo-lang-card">
+                            <h3 class="seo-lang-title">English</h3>
+                            <div class="form-group">
+                                <label class="form-label" for="seoEnTitle">Title</label>
+                                <input type="text" id="seoEnTitle" class="form-input" placeholder="IP Query System">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoEnDesc">Description</label>
+                                <textarea id="seoEnDesc" class="form-textarea" rows="3"
+                                    placeholder="Multi-source IP geolocation query system..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoEnKeywords">Keywords</label>
+                                <input type="text" id="seoEnKeywords" class="form-input"
+                                    placeholder="IP lookup,IP address,GeoIP">
+                            </div>
+                        </div>
+
+                        <div class="seo-lang-card">
+                            <h3 class="seo-lang-title">简体中文</h3>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhTitle">网站标题</label>
+                                <input type="text" id="seoZhTitle" class="form-input" placeholder="IP 信息查询系统">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhDesc">网站描述</label>
+                                <textarea id="seoZhDesc" class="form-textarea" rows="3"
+                                    placeholder="多数据源 IP 地理位置查询系统..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhKeywords">关键词</label>
+                                <input type="text" id="seoZhKeywords" class="form-input"
+                                    placeholder="IP查询,IP地址,地理位置,GeoIP">
+                            </div>
+                        </div>
+
+                        <div class="seo-lang-card">
+                            <h3 class="seo-lang-title">繁體中文</h3>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhHantTitle">網站標題</label>
+                                <input type="text" id="seoZhHantTitle" class="form-input" placeholder="IP 資訊查詢系統">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhHantDesc">網站描述</label>
+                                <textarea id="seoZhHantDesc" class="form-textarea" rows="3"
+                                    placeholder="多資料來源 IP 地理位置查詢系統..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoZhHantKeywords">關鍵詞</label>
+                                <input type="text" id="seoZhHantKeywords" class="form-input"
+                                    placeholder="IP查詢,IP位址,地理位置,GeoIP">
+                            </div>
+                        </div>
+
+                        <div class="seo-lang-card">
+                            <h3 class="seo-lang-title">日本語</h3>
+                            <div class="form-group">
+                                <label class="form-label" for="seoJaTitle">タイトル</label>
+                                <input type="text" id="seoJaTitle" class="form-input" placeholder="IP 情報検索システム">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoJaDesc">説明</label>
+                                <textarea id="seoJaDesc" class="form-textarea" rows="3"
+                                    placeholder="複数データソースによる IP 位置情報検索システム..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="seoJaKeywords">キーワード</label>
+                                <input type="text" id="seoJaKeywords" class="form-input"
+                                    placeholder="IP検索,IPアドレス,位置情報,GeoIP">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

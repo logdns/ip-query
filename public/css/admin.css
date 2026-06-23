@@ -523,6 +523,27 @@ body::before {
     transition: background var(--dur-normal) var(--ease-out);
 }
 
+/* ── SEO Language Cards ── */
+.seo-language-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.seo-lang-card {
+    padding: 18px;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+}
+
+.seo-lang-title {
+    margin-bottom: 14px;
+    font-size: 0.96rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
 /* ── API Section ── */
 .api-section {
     margin-bottom: 24px;
@@ -773,6 +794,10 @@ body::before {
 
     .panel-body {
         padding: 20px 16px;
+    }
+
+    .seo-language-grid {
+        grid-template-columns: 1fr;
     }
 
     .login-card {

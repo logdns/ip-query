@@ -26,14 +26,24 @@ const PORT = process.env.PORT || 3008;
 
 app.use(express.json());
 
-function renderIndexHtml(html) {
+function pickSeo(seo, lang = 'en') {
+    const localized = seo.localized || {};
+    return localized[lang] || localized.en || {
+        title: seo.title,
+        description: seo.description,
+        keywords: seo.keywords,
+    };
+}
+
+function renderIndexHtml(html, lang = 'en') {
     const s = settings.get();
     const seo = s.seo || {};
+    const currentSeo = pickSeo(seo, lang);
     const headAd = s.ads?.head?.enabled ? (s.ads.head.code || '') : '';
     return html
-        .replace(/\{\{SEO_TITLE\}\}/g, seo.title || 'IP 信息查询系统')
-        .replace(/\{\{SEO_DESC\}\}/g, seo.description || '多数据源 IP 地理位置查询系统')
-        .replace(/\{\{SEO_KEYWORDS\}\}/g, seo.keywords || 'IP查询,IP地址,地理位置,GeoIP')
+        .replace(/\{\{SEO_TITLE\}\}/g, currentSeo.title || seo.title || 'IP Query System')
+        .replace(/\{\{SEO_DESC\}\}/g, currentSeo.description || seo.description || 'Multi-source IP query system')
+        .replace(/\{\{SEO_KEYWORDS\}\}/g, currentSeo.keywords || seo.keywords || 'IP lookup,IP address,GeoIP')
         .replace(/\{\{HEAD_AD\}\}/g, headAd);
 }
 
@@ -42,7 +52,7 @@ app.get(['/', '/index.html'], (req, res) => {
     const htmlPath = path.join(__dirname, 'public', 'index.html');
     fs.readFile(htmlPath, 'utf8', (err, html) => {
         if (err) return res.status(500).send('Internal Server Error');
-        const rendered = renderIndexHtml(html);
+        const rendered = renderIndexHtml(html, req.query.lang);
         res.set('Content-Type', 'text/html');
         res.send(rendered);
     });
@@ -705,7 +715,7 @@ app.get('/admin', (req, res) => {
 // ═══════════════════════════════════════════
 app.get('/', (req, res) => {
     let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-    res.type('html').send(renderIndexHtml(html));
+    res.type('html').send(renderIndexHtml(html, req.query.lang));
 });
 
 // ═══════════════════════════════════════════

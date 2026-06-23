@@ -41,6 +41,7 @@
     let leafletMap = null;
     let mapMarker = null;
     let currentLang = 'en';
+    let seoSettings = null;
 
     // ═══════════════════════════════════════════
     // 多语言 i18n
@@ -134,8 +135,48 @@
             document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : currentLang === 'zh-Hant' ? 'zh-Hant' : currentLang;
             localStorage.setItem('ip-query-lang', currentLang);
             updatePlaceholder();
+            updateSeoTags();
             if (lastResultData) renderResults(lastResultData);
         });
+    }
+
+    async function loadSeo() {
+        try {
+            const res = await fetch('/api/seo', { cache: 'no-store' });
+            if (!res.ok) return;
+            seoSettings = await res.json();
+            updateSeoTags();
+        } catch {
+            // SEO 加载失败不影响查询功能。
+        }
+    }
+
+    function updateSeoTags() {
+        if (!seoSettings) return;
+        const seo = pickSeoForLang(currentLang);
+        if (seo.title) document.title = seo.title;
+        setMetaContent('description', seo.description);
+        setMetaContent('keywords', seo.keywords);
+    }
+
+    function pickSeoForLang(lang) {
+        const localized = seoSettings.localized || {};
+        return localized[lang] || localized.en || {
+            title: seoSettings.title,
+            description: seoSettings.description,
+            keywords: seoSettings.keywords,
+        };
+    }
+
+    function setMetaContent(name, content) {
+        if (!content) return;
+        let meta = document.querySelector(`meta[name="${name}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('name', name);
+            document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', content);
     }
 
     // ═══════════════════════════════════════════
@@ -710,6 +751,7 @@
         initLang();
         initTheme();
         createParticles();
+        loadSeo();
         loadAds();
         detectMyIP();
         detectBrowser();
