@@ -161,13 +161,15 @@
         // API Keys
         const abuseKeys = data.apiKeys?.abuseipdb || [];
         $('#apiAbuseKeys').value = abuseKeys.join('\n');
-        $('#apiIplocateKey').value = data.apiKeys?.iplocate || '';
-        $('#apiIp2locationKey').value = data.apiKeys?.ip2location || '';
+        $('#apiIplocateKey').value = normalizeKeys(data.apiKeys?.iplocate).join('\n');
+        $('#apiIp2locationKey').value = normalizeKeys(data.apiKeys?.ip2location).join('\n');
+        $('#apiIpdataKeys').value = normalizeKeys(data.apiKeys?.ipdata).join('\n');
 
         // API Endpoints
         $('#endpointAbuseipdb').value = data.apiEndpoints?.abuseipdb || '';
         $('#endpointIplocate').value = data.apiEndpoints?.iplocate || '';
         $('#endpointIp2location').value = data.apiEndpoints?.ip2location || '';
+        $('#endpointIpdata').value = data.apiEndpoints?.ipdata || '';
         $('#endpointNominatim').value = data.apiEndpoints?.nominatim || '';
 
         // Map
@@ -208,15 +210,17 @@
                 localized: localizedSeo,
             },
             apiKeys: {
-                abuseipdb: $('#apiAbuseKeys').value.split('\n').map(s => s.trim()).filter(Boolean),
-                iplocate: $('#apiIplocateKey').value.trim(),
-                ip2location: $('#apiIp2locationKey').value.trim(),
+                abuseipdb: readKeyLines('#apiAbuseKeys'),
+                iplocate: readKeyLines('#apiIplocateKey'),
+                ip2location: readKeyLines('#apiIp2locationKey'),
+                ipdata: readKeyLines('#apiIpdataKeys'),
                 nominatimEmail: $('#nominatimEmail').value.trim(),
             },
             apiEndpoints: {
                 abuseipdb: $('#endpointAbuseipdb').value.trim(),
                 iplocate: $('#endpointIplocate').value.trim(),
                 ip2location: $('#endpointIp2location').value.trim(),
+                ipdata: $('#endpointIpdata').value.trim(),
                 nominatim: $('#endpointNominatim').value.trim(),
             },
             admin: {
@@ -273,6 +277,15 @@
             description: $(`#seo${prefix}Desc`).value.trim(),
             keywords: $(`#seo${prefix}Keywords`).value.trim(),
         };
+    }
+
+    function normalizeKeys(value) {
+        if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+        return String(value || '').split(/[\n,]/).map(v => v.trim()).filter(Boolean);
+    }
+
+    function readKeyLines(selector) {
+        return normalizeKeys($(selector).value);
     }
 
     // ═══════════════════════════════════════════

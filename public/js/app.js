@@ -80,6 +80,7 @@
         '数据源1': { 'zh-Hant': '資料來源1', ja: 'データソース1' },
         '数据源2': { 'zh-Hant': '資料來源2', ja: 'データソース2' },
         '数据源3': { 'zh-Hant': '資料來源3', ja: 'データソース3' },
+        '数据源4': { 'zh-Hant': '資料來源4', ja: 'データソース4' },
         '所有数据源均查询失败': { 'zh-Hant': '所有資料來源均查詢失敗', ja: 'すべてのデータソースで失敗しました' },
         '字段': { 'zh-Hant': '欄位', ja: '項目' },
         '国家代码': { 'zh-Hant': '國家代碼', ja: 'コード' },
@@ -95,6 +96,7 @@
         '滥用评分': { 'zh-Hant': '濫用評分', ja: '不正利用スコア' },
         '举报次数': { 'zh-Hant': '通報次數', ja: '報告数' },
         '欺诈评分': { 'zh-Hant': '詐欺評分', ja: '不正スコア' },
+        '数据中心': { 'zh-Hant': '資料中心', ja: 'データセンター' },
         '次': { 'zh-Hant': '次', ja: '回' },
         '暂无数据': { 'zh-Hant': '暫無資料', ja: 'データなし' },
         '是': { 'zh-Hant': '是', ja: 'はい' },
@@ -426,34 +428,36 @@
         const abuse = data.sources.abuseipdb;
         const iplocate = data.sources.iplocate;
         const ip2location = data.sources.ip2location;
-        const best = mergeBestData(abuse, iplocate, ip2location);
+        const ipdata = data.sources.ipdata;
+        const best = mergeBestData(abuse, iplocate, ip2location, ipdata);
 
         renderOverview(data.ip, best);
-        renderComparisonTable(abuse, iplocate, ip2location);
-        renderSecurity(abuse, iplocate, ip2location);
-        renderLocation(best, iplocate, ip2location);
+        renderComparisonTable(abuse, iplocate, ip2location, ipdata);
+        renderSecurity(abuse, iplocate, ip2location, ipdata);
+        renderLocation(best, iplocate, ip2location, ipdata);
         showSection('results');
     }
 
-    function mergeBestData(abuse, iplocate, ip2location) {
+    function mergeBestData(abuse, iplocate, ip2location, ipdata) {
         const a = abuse?.data || {};
         const d = iplocate?.data || {};
         const p = ip2location?.data || {};
+        const i = ipdata?.data || {};
         return {
-            ip: d.ip || p.ip || a.ip,
-            country: d.country || p.country || a.country,
-            country_code: d.country_code || p.country_code || a.country_code,
-            country_flag: d.country_flag || p.country_flag || '',
-            region: d.region || p.region,
-            city: d.city || p.city,
-            isp: a.isp || d.isp || p.isp || d.organization,
-            asn: d.asn || p.asn,
-            organization: d.organization || p.organization || a.isp,
-            hostname: d.hostname || a.hostname,
-            timezone: d.timezone || p.timezone,
-            usage_type: a.usage_type || d.usage_type || p.usage_type || d.connection_type || p.connection_type,
-            latitude: d.latitude ?? p.latitude,
-            longitude: d.longitude ?? p.longitude,
+            ip: d.ip || p.ip || i.ip || a.ip,
+            country: d.country || p.country || i.country || a.country,
+            country_code: d.country_code || p.country_code || i.country_code || a.country_code,
+            country_flag: d.country_flag || p.country_flag || i.country_flag || '',
+            region: d.region || p.region || i.region,
+            city: d.city || p.city || i.city,
+            isp: a.isp || d.isp || p.isp || i.isp || d.organization,
+            asn: d.asn || p.asn || i.asn,
+            organization: d.organization || p.organization || i.organization || a.isp,
+            hostname: d.hostname || a.hostname || i.hostname,
+            timezone: d.timezone || p.timezone || i.timezone,
+            usage_type: a.usage_type || d.usage_type || p.usage_type || i.usage_type || d.connection_type || p.connection_type || i.connection_type,
+            latitude: d.latitude ?? p.latitude ?? i.latitude,
+            longitude: d.longitude ?? p.longitude ?? i.longitude,
         };
     }
 
@@ -520,11 +524,12 @@
     }
 
     // ── 地理位置 & 地址 ──
-    function renderLocation(best, iplocate, ip2location) {
+    function renderLocation(best, iplocate, ip2location, ipdata) {
         const d = iplocate?.data || {};
         const p = ip2location?.data || {};
-        const lat = d.latitude ?? p.latitude ?? null;
-        const lon = d.longitude ?? p.longitude ?? null;
+        const i = ipdata?.data || {};
+        const lat = d.latitude ?? p.latitude ?? i.latitude ?? null;
+        const lon = d.longitude ?? p.longitude ?? i.longitude ?? null;
 
         if (!lat || !lon) { locationSection.classList.add('hidden'); return; }
         locationSection.classList.remove('hidden');
@@ -617,15 +622,17 @@
     }
 
     // ── 对比表 ──
-    function renderComparisonTable(abuse, iplocate, ip2location) {
+    function renderComparisonTable(abuse, iplocate, ip2location, ipdata) {
         const a = abuse?.success ? abuse.data : null;
         const d = iplocate?.success ? iplocate.data : null;
         const p = ip2location?.success ? ip2location.data : null;
+        const i = ipdata?.success ? ipdata.data : null;
 
         const activeSources = [];
         if (a) activeSources.push({ key: 'abuse', label: t('数据源1', 'Source 1'), badge: 'badge-abuse', icon: '🛡️' });
         if (d) activeSources.push({ key: 'iplocate', label: t('数据源2', 'Source 2'), badge: 'badge-dkly', icon: '📡' });
         if (p) activeSources.push({ key: 'ip2location', label: t('数据源3', 'Source 3'), badge: 'badge-ip2l', icon: '🌍' });
+        if (i) activeSources.push({ key: 'ipdata', label: t('数据源4', 'Source 4'), badge: 'badge-ipdata', icon: '⚡' });
 
         if (!activeSources.length) {
             compTableHead.innerHTML = '';
@@ -655,6 +662,7 @@
         if (a) sourceDataMap.abuse = a;
         if (d) sourceDataMap.iplocate = d;
         if (p) sourceDataMap.ip2location = p;
+        if (i) sourceDataMap.ipdata = i;
 
         compTableBody.innerHTML = rows.map(row => {
             const values = activeSources.map(s => {
@@ -678,20 +686,23 @@
         if (!abuse?.success) failed.push(`${t('数据源1', 'Source 1')}: ${abuse?.error || t('未知', 'Unknown')}`);
         if (!iplocate?.success) failed.push(`${t('数据源2', 'Source 2')}: ${iplocate?.error || t('未知', 'Unknown')}`);
         if (!ip2location?.success) failed.push(`${t('数据源3', 'Source 3')}: ${ip2location?.error || t('未知', 'Unknown')}`);
+        if (!ipdata?.success) failed.push(`${t('数据源4', 'Source 4')}: ${ipdata?.error || t('未知', 'Unknown')}`);
         if (failed.length) {
             compTableBody.innerHTML += `<tr><td colspan="${activeSources.length + 1}" style="padding:12px 24px;font-size:0.82rem;color:var(--status-warning)">⚠️ ${t('部分数据源不可用', 'Some sources unavailable')}: ${failed.join(' | ')}</td></tr>`;
         }
     }
 
     // ── 安全检测 ──
-    function renderSecurity(abuse, iplocate, ip2location) {
+    function renderSecurity(abuse, iplocate, ip2location, ipdata) {
         const d = iplocate?.success ? iplocate.data : {};
         const a = abuse?.success ? abuse.data : {};
         const p = ip2location?.success ? ip2location.data : {};
+        const i = ipdata?.success ? ipdata.data : {};
 
         const S1 = t('数据源1', 'Source 1');
         const S2 = t('数据源2', 'Source 2');
         const S3 = t('数据源3', 'Source 3');
+        const S4 = t('数据源4', 'Source 4');
 
         const pick = (...cands) => {
             for (const [val, src] of cands) {
@@ -700,10 +711,10 @@
             return { value: null, source: null };
         };
 
-        const vpn = pick([d.is_vpn, S2], [p.is_vpn, S3]);
-        const proxy = pick([d.is_proxy, S2], [p.is_proxy, S3]);
-        const tor = pick([d.is_tor, S2], [p.is_tor, S3], [a.is_tor, S1]);
-        const threat = pick([d.is_threat, S2], [p.is_threat, S3], [a.is_threat, S1]);
+        const vpn = pick([d.is_vpn, S2], [p.is_vpn, S3], [i.is_vpn, S4]);
+        const proxy = pick([d.is_proxy, S2], [p.is_proxy, S3], [i.is_proxy, S4]);
+        const tor = pick([d.is_tor, S2], [p.is_tor, S3], [i.is_tor, S4], [a.is_tor, S1]);
+        const threat = pick([d.is_threat, S2], [p.is_threat, S3], [i.is_threat, S4], [a.is_threat, S1]);
 
         const items = [
             { label: 'VPN', value: vpn.value, source: vpn.source },
@@ -714,6 +725,8 @@
         if (a.abuse_score !== undefined) items.push({ label: t('滥用评分', 'Abuse Score'), value: a.abuse_score, source: S1, isScore: true });
         if (a.total_reports !== undefined) items.push({ label: t('举报次数', 'Reports'), value: a.total_reports, source: S1, isCount: true });
         if (p.fraud_score != null) items.push({ label: t('欺诈评分', 'Fraud Score'), value: p.fraud_score, source: S3, isScore: true });
+        if (i.is_hosting != null) items.push({ label: t('数据中心', 'Datacenter'), value: i.is_hosting, source: S4 });
+        if (i.is_bogon != null) items.push({ label: 'Bogon', value: i.is_bogon, source: S4 });
 
         securityGrid.innerHTML = items.map(item => {
             let cls, icon, val;

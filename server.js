@@ -92,22 +92,61 @@ function requireAdmin(req, res, next) {
 // API Key 轮询器 (动态从 settings 读取)
 // ═══════════════════════════════════════════
 function getAbuseKeys() {
-    return settings.get().apiKeys?.abuseipdb || [];
+    return normalizeKeys(settings.get().apiKeys?.abuseipdb);
 }
-function getIplocateKey() {
-    return settings.get().apiKeys?.iplocate || '';
+function getIplocateKeys() {
+    return normalizeKeys(settings.get().apiKeys?.iplocate);
 }
-function getIp2locationKey() {
-    return settings.get().apiKeys?.ip2location || '';
+function getIp2locationKeys() {
+    return normalizeKeys(settings.get().apiKeys?.ip2location);
+}
+function getIpdataKeys() {
+    return normalizeKeys(settings.get().apiKeys?.ipdata);
 }
 
-let abuseKeyIndex = 0;
-function nextAbuseKey() {
-    const keys = getAbuseKeys();
-    if (!keys.length) return '';
-    const key = keys[abuseKeyIndex % keys.length];
-    abuseKeyIndex = (abuseKeyIndex + 1) % keys.length;
-    return key;
+function normalizeKeys(value) {
+    if (Array.isArray(value)) return value.map(k => String(k).trim()).filter(Boolean);
+    return String(value || '').split(/[\n,]/).map(k => k.trim()).filter(Boolean);
+}
+
+function shuffled(keys) {
+    const out = [...keys];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+}
+
+async function tryKeys(keys, fetcher, emptyValue = '') {
+    const candidates = keys.length ? shuffled(keys) : [emptyValue];
+    let lastError = null;
+    for (const key of candidates) {
+        try {
+            return await fetcher(key);
+        } catch (err) {
+            lastError = err;
+            if (!shouldRetryWithNextKey(err)) break;
+        }
+    }
+    throw lastError || new Error('No API key');
+}
+
+function shouldRetryWithNextKey(err) {
+    const status = err?.status;
+    return status === 401 || status === 402 || status === 403 || status === 429;
+}
+
+function httpError(name, status) {
+    const err = new Error(`${name} HTTP ${status}`);
+    err.status = status;
+    return err;
+}
+
+function apiDataError(name, message, status = 429) {
+    const err = new Error(`${name}: ${message || 'API error'}`);
+    err.status = status;
+    return err;
 }
 
 // ═══════════════════════════════════════════
@@ -169,16 +208,20 @@ function isValidIP(ip) {
 // 数据源1: AbuseIPDB
 // ═══════════════════════════════════════════
 async function fetchAbuseIPDB(ip) {
-    const apiKey = nextAbuseKey();
-    if (!apiKey) return { source: 'AbuseIPDB', success: false, error: 'No API key', data: null };
+    const keys = getAbuseKeys();
+    if (!keys.length) return { source: 'AbuseIPDB', success: false, error: 'No API key', data: null };
     try {
         const s = settings.get();
         const baseUrl = s.apiEndpoints?.abuseipdb || 'https://api.abuseipdb.com/api/v2/check';
-        const res = await fetch(`${baseUrl}?ipAddress=${encodeURIComponent(ip)}&verbose`, {
-            headers: { 'Key': apiKey, 'Accept': 'application/json' }, timeout: 8000
+        const json = await tryKeys(keys, async (apiKey) => {
+            const res = await fetch(`${baseUrl}?ipAddress=${encodeURIComponent(ip)}&verbose`, {
+                headers: { 'Key': apiKey, 'Accept': 'application/json' }, timeout: 8000
+            });
+            if (!res.ok) throw httpError('AbuseIPDB', res.status);
+            const body = await res.json();
+            if (body.errors?.length) throw apiDataError('AbuseIPDB', body.errors[0]?.detail || body.errors[0]?.message);
+            return body;
         });
-        if (!res.ok) throw new Error(`AbuseIPDB HTTP ${res.status}`);
-        const json = await res.json();
         const d = json.data || {};
         return {
             source: 'AbuseIPDB', success: true,
@@ -206,18 +249,21 @@ async function fetchAbuseIPDB(ip) {
 // 数据源2: iplocate.io
 // ═══════════════════════════════════════════
 async function fetchIplocate(ip) {
-    const key = getIplocateKey();
-    if (!key) return { source: 'iplocate', success: false, error: 'No API key', data: null };
+    const keys = getIplocateKeys();
+    if (!keys.length) return { source: 'iplocate', success: false, error: 'No API key', data: null };
     try {
         const s = settings.get();
         const baseUrl = s.apiEndpoints?.iplocate || 'https://iplocate.io/api/lookup';
-        const url = ip
-            ? `${baseUrl}/${encodeURIComponent(ip)}?apikey=${encodeURIComponent(key)}`
-            : `${baseUrl}?apikey=${encodeURIComponent(key)}`;
-        const res = await fetch(url, { timeout: 8000 });
-        if (!res.ok) throw new Error(`iplocate HTTP ${res.status}`);
-        const d = await res.json();
-        if (d.error) throw new Error(d.error);
+        const d = await tryKeys(keys, async (key) => {
+            const url = ip
+                ? `${baseUrl}/${encodeURIComponent(ip)}?apikey=${encodeURIComponent(key)}`
+                : `${baseUrl}?apikey=${encodeURIComponent(key)}`;
+            const res = await fetch(url, { timeout: 8000 });
+            if (!res.ok) throw httpError('iplocate', res.status);
+            const body = await res.json();
+            if (body.error) throw apiDataError('iplocate', body.error);
+            return body;
+        });
         return {
             source: 'iplocate', success: true,
             data: {
@@ -262,19 +308,22 @@ async function fetchIplocate(ip) {
 // 数据源3: ip2location.io
 // ═══════════════════════════════════════════
 async function fetchIp2location(ip) {
-    const key = getIp2locationKey();
     try {
         const s = settings.get();
         const baseUrl = s.apiEndpoints?.ip2location || 'https://api.ip2location.io/';
-        const params = new URLSearchParams();
-        if (key) params.set('key', key);
-        if (ip) params.set('ip', ip);
-        const sep = baseUrl.includes('?') ? '&' : '?';
-        const url = `${baseUrl}${sep}${params.toString()}`;
-        const res = await fetch(url, { timeout: 8000 });
-        if (!res.ok) throw new Error(`ip2location HTTP ${res.status}`);
-        const d = await res.json();
-        if (d.error) throw new Error(d.error.error_message || 'ip2location error');
+        const keys = getIp2locationKeys();
+        const d = await tryKeys(keys, async (key) => {
+            const params = new URLSearchParams();
+            if (key) params.set('key', key);
+            if (ip) params.set('ip', ip);
+            const sep = baseUrl.includes('?') ? '&' : '?';
+            const url = `${baseUrl}${sep}${params.toString()}`;
+            const res = await fetch(url, { timeout: 8000 });
+            if (!res.ok) throw httpError('ip2location', res.status);
+            const body = await res.json();
+            if (body.error) throw apiDataError('ip2location', body.error.error_message || 'ip2location error');
+            return body;
+        });
         const proxy = d.proxy || {};
         return {
             source: 'ip2location', success: true,
@@ -314,6 +363,67 @@ async function fetchIp2location(ip) {
         };
     } catch (err) {
         return { source: 'ip2location', success: false, error: err.message, data: null };
+    }
+}
+
+// ═══════════════════════════════════════════
+// 数据源4: ipdata.co
+// ═══════════════════════════════════════════
+async function fetchIpdata(ip) {
+    const keys = getIpdataKeys();
+    if (!keys.length) return { source: 'ipdata', success: false, error: 'No API key', data: null };
+    try {
+        const s = settings.get();
+        const baseUrl = (s.apiEndpoints?.ipdata || 'https://api.ipdata.co').replace(/\/$/, '');
+        const d = await tryKeys(keys, async (key) => {
+            const url = `${baseUrl}/${encodeURIComponent(ip)}?api-key=${encodeURIComponent(key)}`;
+            const res = await fetch(url, { timeout: 8000 });
+            if (!res.ok) throw httpError('ipdata', res.status);
+            const body = await res.json();
+            if (body.error) throw apiDataError('ipdata', body.reason || body.message || body.error);
+            return body;
+        });
+        const asn = d.asn || {};
+        const company = d.company || {};
+        const threat = d.threat || {};
+        return {
+            source: 'ipdata', success: true,
+            data: {
+                ip: d.ip || ip,
+                country: d.country_name || null,
+                country_code: d.country_code || null,
+                country_flag: d.emoji_flag || null,
+                region: d.region || null,
+                city: d.city || null,
+                latitude: d.latitude ?? null,
+                longitude: d.longitude ?? null,
+                timezone: d.time_zone?.name || null,
+                timezone_abbr: d.time_zone?.abbr || null,
+                asn: asn.asn || null,
+                organization: asn.name || company.name || null,
+                connection_type: asn.type || company.type || null,
+                isp: asn.name || company.name || null,
+                hostname: null,
+                ip_type: asn.type || company.type || null,
+                is_vpn: threat.is_vpn ?? null,
+                is_proxy: threat.is_proxy ?? null,
+                is_tor: threat.is_tor ?? null,
+                is_threat: threat.is_threat ?? threat.is_known_attacker ?? threat.is_known_abuser ?? null,
+                continent: d.continent_name || null,
+                continent_code: d.continent_code || null,
+                postal: d.postal || null,
+                domain: asn.domain || company.domain || null,
+                usage_type: asn.type || company.type || null,
+                is_hosting: threat.is_datacenter ?? null,
+                is_anonymous: threat.is_anonymous ?? null,
+                company_name: company.name || null,
+                company_domain: company.domain || null,
+                hosting_provider: null,
+                is_bogon: threat.is_bogon ?? null,
+            }
+        };
+    } catch (err) {
+        return { source: 'ipdata', success: false, error: err.message, data: null };
     }
 }
 
@@ -400,10 +510,10 @@ app.get('/api/query', async (req, res) => {
     if (!isValidIP(ip)) return res.status(400).json({ error: true, message: 'IP 地址格式无效' });
 
     try {
-        const [abuse, iplocate, ip2location] = await Promise.all([
-            fetchAbuseIPDB(ip), fetchIplocate(ip), fetchIp2location(ip),
+        const [abuse, iplocate, ip2location, ipdata] = await Promise.all([
+            fetchAbuseIPDB(ip), fetchIplocate(ip), fetchIp2location(ip), fetchIpdata(ip),
         ]);
-        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, iplocate, ip2location } });
+        res.json({ ip, timestamp: new Date().toISOString(), sources: { abuseipdb: abuse, iplocate, ip2location, ipdata } });
     } catch (err) {
         res.status(500).json({ error: true, message: '查询失败: ' + err.message });
     }
@@ -473,8 +583,6 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
 app.put('/api/admin/settings', requireAdmin, (req, res) => {
     try {
         const updated = settings.update(req.body);
-        // 重新加载 key index
-        abuseKeyIndex = 0;
         res.json({ success: true, settings: updated });
     } catch (err) {
         res.status(500).json({ error: true, message: err.message });
@@ -723,13 +831,15 @@ app.get('/', (req, res) => {
 // ═══════════════════════════════════════════
 app.listen(PORT, '0.0.0.0', () => {
     const s = settings.get();
-    const abuseCount = s.apiKeys?.abuseipdb?.length || 0;
-    const hasIplocate = !!s.apiKeys?.iplocate;
-    const hasIp2location = !!s.apiKeys?.ip2location;
+    const abuseCount = normalizeKeys(s.apiKeys?.abuseipdb).length;
+    const iplocateCount = normalizeKeys(s.apiKeys?.iplocate).length;
+    const ip2locationCount = normalizeKeys(s.apiKeys?.ip2location).length;
+    const ipdataCount = normalizeKeys(s.apiKeys?.ipdata).length;
     console.log(`🚀 IP Query Server running at http://0.0.0.0:${PORT}`);
     console.log(`   AbuseIPDB keys: ${abuseCount} loaded`);
-    console.log(`   iplocate.io:    ${hasIplocate ? '✅ configured' : '❌ not configured'}`);
-    console.log(`   ip2location.io: ${hasIp2location ? '✅ configured' : '⚠️  keyless (1000/day)'}`);
+    console.log(`   iplocate.io:    ${iplocateCount} loaded`);
+    console.log(`   ip2location.io: ${ip2locationCount} loaded (${ip2locationCount ? 'configured' : 'keyless fallback'})`);
+    console.log(`   ipdata.co:      ${ipdataCount} loaded`);
     console.log(`   Admin panel:    http://0.0.0.0:${PORT}/admin`);
     console.log(`   Admin password: ${s.admin?.password || 'admin123'}`);
 });

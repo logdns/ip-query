@@ -222,10 +222,11 @@
                                 <span class="api-dot dkly"></span>
                                 iplocate.io
                             </h3>
+                            <span class="api-section-hint">支持多个 Key 随机轮询，每行一个</span>
                         </div>
                         <div class="form-group">
-                            <input type="text" id="apiIplocateKey" class="form-input form-mono"
-                                placeholder="iplocate.io API Key">
+                            <textarea id="apiIplocateKey" class="form-textarea form-mono" rows="3"
+                                placeholder="每行一个 iplocate.io API Key"></textarea>
                         </div>
                     </div>
                     <!-- ip2location.io -->
@@ -235,11 +236,25 @@
                                 <span class="api-dot ip2l"></span>
                                 ip2location.io
                             </h3>
-                            <span class="api-section-hint">留空则使用免费额度 (每天 1000 次)</span>
+                            <span class="api-section-hint">支持多个 Key 随机轮询；留空则使用免费额度</span>
                         </div>
                         <div class="form-group">
-                            <input type="text" id="apiIp2locationKey" class="form-input form-mono"
-                                placeholder="ip2location.io API Key">
+                            <textarea id="apiIp2locationKey" class="form-textarea form-mono" rows="3"
+                                placeholder="每行一个 ip2location.io API Key"></textarea>
+                        </div>
+                    </div>
+                    <!-- ipdata.co -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <h3 class="api-section-title">
+                                <span class="api-dot ipdata"></span>
+                                ipdata.co
+                            </h3>
+                            <span class="api-section-hint">数据源4，支持多个 Key 随机轮询，每行一个</span>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="apiIpdataKeys" class="form-textarea form-mono" rows="3"
+                                placeholder="每行一个 ipdata.co API Key"></textarea>
                         </div>
                     </div>
                 </div>
@@ -299,6 +314,21 @@
                             <input type="url" id="endpointIp2location" class="form-input form-mono"
                                 placeholder="https://api.ip2location.io/">
                             <div class="form-hint">默认: https://api.ip2location.io/</div>
+                        </div>
+                    </div>
+                    <!-- Nominatim 端点 -->
+                    <!-- ipdata.co 端点 -->
+                    <div class="api-section">
+                        <div class="api-section-header">
+                            <h3 class="api-section-title">
+                                <span class="api-dot ipdata"></span>
+                                ipdata.co 接口地址
+                            </h3>
+                        </div>
+                        <div class="form-group">
+                            <input type="url" id="endpointIpdata" class="form-input form-mono"
+                                placeholder="https://api.ipdata.co">
+                            <div class="form-hint">默认: https://api.ipdata.co</div>
                         </div>
                     </div>
                     <!-- Nominatim 端点 -->

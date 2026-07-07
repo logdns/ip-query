@@ -593,6 +593,10 @@ body::before {
     background: #34d399;
 }
 
+.api-dot.ipdata {
+    background: #a855f7;
+}
+
 .api-dot.nominatim {
     background: var(--success);
 }

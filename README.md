@@ -1,26 +1,26 @@
 # 🌐 IP 信息查询系统 / IP Query System
 
-多数据源聚合的 IP 地理位置、网络信息、安全检测查询系统。支持 AbuseIPDB、iplocate.io 双数据源实时对比分析，内嵌 OpenStreetMap 地图定位。
+多数据源聚合的 IP 地理位置、网络信息、安全检测查询系统。支持 AbuseIPDB、iplocate.io、ip2location.io、ipdata.co 四数据源实时对比分析，内嵌 OpenStreetMap 地图定位。
 
-A multi-source IP geolocation, network info, and security detection system with AbuseIPDB + iplocate.io dual-source comparison and embedded OpenStreetMap positioning.
+A multi-source IP geolocation, network info, and security detection system with AbuseIPDB, iplocate.io, ip2location.io, and ipdata.co comparison plus embedded OpenStreetMap positioning.
 
 ## ✨ 功能特性 / Features
 
 ### 前台查询 / Frontend
 - 🔍 **IP 信息查询** — 输入任意 IPv4/IPv6 地址，聚合多源数据
-- 📊 **多源对比** — AbuseIPDB、iplocate.io 双数据源并排对比，差异高亮
+- 📊 **多源对比** — 四数据源并排对比，差异高亮
 - 🛡️ **安全检测** — VPN / 代理 / Tor / 威胁检测，AbuseIPDB 滥用评分
 - 🗺️ **地图定位** — Leaflet + OpenStreetMap 嵌入式地图，深色/浅色主题自动切换 Tile
 - 📍 **街道地址** — Nominatim 反向地理编码，精确到街道级别
-- 🌐 **中英双语** — 界面标签同时显示中文和英文
+- 🌐 **多语言** — 支持 English、简体中文、繁體中文、日本語
 - 💻 **浏览器标识** — 自动检测并展示访客浏览器、操作系统、设备类型
 - 🎨 **主题切换** — 深色 / 浅色主题一键切换
 - 📱 **响应式** — 完美适配桌面端和移动端
 
 ### 管理后台 / Admin (`/admin`)
 - 🔐 **密码认证** — Token 鉴权，24h 自动过期
-- 📝 **SEO 设置** — 配置网站标题、描述、关键词
-- 🔑 **API Key 管理** — 在线管理 AbuseIPDB（多 Key 轮询）、iplocate.io 密钥
+- 📝 **SEO 设置** — 按语言配置网站标题、描述、关键词
+- 🔑 **API Key 管理** — 在线管理四个数据源的多 Key 随机轮询
 - 🔗 **接口地址配置** — 自定义各数据源 API 端点地址，方便接入代理或新数据源
 - 🗺️ **地图设置** — 配置 Nominatim 联系邮箱
 - 🔒 **安全设置** — 修改管理密码
@@ -32,7 +32,7 @@ A multi-source IP geolocation, network info, and security detection system with 
 |------|------|
 | 后端 Backend | Node.js + Express |
 | 前端 Frontend | 原生 HTML/CSS/JS |
-| 数据源 Sources | AbuseIPDB / iplocate.io |
+| 数据源 Sources | AbuseIPDB / iplocate.io / ip2location.io / ipdata.co |
 | 地图 Map | Leaflet + OpenStreetMap + CARTO Tiles |
 | 地理编码 Geocoding | OpenStreetMap Nominatim |
 | CDN | cdn.jsdelivr.net (Inter font, Leaflet) |
@@ -68,8 +68,14 @@ PORT=3008
 # AbuseIPDB API Keys (支持多个，逗号分隔)
 ABUSEIPDB_KEYS=your_key_1,your_key_2
 
-# iplocate.io API Key
-IPLOCATE_API_KEY=your_iplocate_key
+# iplocate.io API Keys (多个 key 轮询使用，逗号分隔)
+IPLOCATE_API_KEY=your_iplocate_key_1,your_iplocate_key_2
+
+# ip2location.io API Keys (多个 key 轮询使用，逗号分隔；留空则使用免费额度)
+IP2LOCATION_API_KEY=your_ip2location_key_1,your_ip2location_key_2
+
+# ipdata.co API Keys (多个 key 轮询使用，逗号分隔)
+IPDATA_API_KEYS=your_ipdata_key_1,your_ipdata_key_2
 
 # 管理后台密码
 ADMIN_PASSWORD=your_admin_password
@@ -358,8 +364,23 @@ ip-query/
 ### iplocate.io
 - 需要 API Key（免费注册 / Free registration）
 - 提供详细信息：地理位置、ASN、VPN/Proxy/Tor/威胁检测、公司信息、托管商信息
+- **支持多 Key 随机轮询**
 - API 格式: `GET https://iplocate.io/api/lookup/{ip}?apikey=YOUR_KEY`
 - 文档: https://www.iplocate.io/docs
+
+### ip2location.io
+- 可配置 API Key；留空时使用官方免费额度
+- 提供地理位置、ASN、代理/VPN/数据中心与欺诈评分信息
+- **支持多 Key 随机轮询**
+- API 格式: `GET https://api.ip2location.io/?key=YOUR_KEY&ip={ip}`
+- 文档: https://www.ip2location.io/ip2location-documentation
+
+### ipdata.co
+- 需要 API Key
+- 提供地理位置、ASN、公司、时区与威胁检测信息
+- **支持多 Key 随机轮询**
+- API 格式: `GET https://api.ipdata.co/{ip}?api-key=YOUR_KEY`
+- 文档: https://docs.ipdata.co/docs/getting-started
 
 ### OpenStreetMap Nominatim
 - **免费**，无需 API Key
