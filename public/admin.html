@@ -8,7 +8,7 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/inter-ui@4.1.0/inter.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/css/admin.css?v=1.1.12">
 </head>
 
 <body data-theme="light">
@@ -398,7 +398,14 @@
                     <div class="info-card">
                         <div class="info-icon">ℹ️</div>
                         <div class="info-text">
-                            支持 HTML/JS 广告代码。可见广告位支持普通文字、图片、iframe 和广告平台脚本；保存后刷新前台即可生效。
+                            启用广告位、选择代码类型并保存后，刷新前台即可生效。带 &lt;script&gt; 标签的广告选 HTML；不带标签的 JS 选纯 JavaScript。只有来自可信广告平台的代码才可粘贴。
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">ℹ️</div>
+                        <div class="info-text">
+                            自动模式会将直接使用 document.write 的代码放进独立 iframe；如果外部广告脚本使用 document.write，请手动选 iframe 兼容模式。AdSense 等需要访问主页面的 SDK 请选页面内模式。结果区广告只在查询成功后加载，不会在首页直接展示。
+                            <p><a href="/" target="_blank" rel="noopener">打开前台验证已保存的广告</a> · 如仍未显示，请检查广告拦截插件、HTTPS 混合内容、平台域名审核和浏览器控制台中的 [Ads] 提示。</p>
                         </div>
                     </div>
 
@@ -408,6 +415,10 @@
                             <span class="api-section-hint">不可见，注入 &lt;head&gt;，适合统计、验证、广告平台初始化脚本</span>
                         </div>
                         <label class="check-row"><input type="checkbox" id="adHeadEnabled"> 启用 Head 脚本位</label>
+                        <div class="form-group">
+                            <label class="form-label" for="adHeadType">代码类型</label>
+                            <select id="adHeadType" class="form-input"><option value="html">HTML / 脚本标签</option><option value="javascript">纯 JavaScript（无 script 标签）</option></select>
+                        </div>
                         <div class="form-group">
                             <textarea id="adHeadCode" class="form-textarea form-mono" rows="5"
                                 placeholder="粘贴统计、验证或广告平台初始化代码。这里不会作为横幅显示。"></textarea>
@@ -420,6 +431,10 @@
                             <span class="api-section-hint">展示在标题下方</span>
                         </div>
                         <label class="check-row"><input type="checkbox" id="adTopEnabled"> 启用顶部广告位</label>
+                        <div class="ad-options">
+                            <div class="form-group"><label class="form-label" for="adTopType">代码类型</label><select id="adTopType" class="form-input"><option value="html">HTML / 脚本标签</option><option value="javascript">纯 JavaScript（无 script 标签）</option></select></div>
+                            <div class="form-group"><label class="form-label" for="adTopMode">加载方式</label><select id="adTopMode" class="form-input"><option value="auto">自动（识别 document.write）</option><option value="inline">页面内（现代广告 SDK）</option><option value="iframe">iframe 兼容（旧式广告）</option></select></div>
+                        </div>
                         <div class="form-group">
                             <textarea id="adTopCode" class="form-textarea form-mono" rows="4"
                                 placeholder="粘贴顶部广告 HTML/JS 代码"></textarea>
@@ -432,6 +447,10 @@
                             <span class="api-section-hint">展示在搜索框下方</span>
                         </div>
                         <label class="check-row"><input type="checkbox" id="adSearchEnabled"> 启用搜索区广告位</label>
+                        <div class="ad-options">
+                            <div class="form-group"><label class="form-label" for="adSearchType">代码类型</label><select id="adSearchType" class="form-input"><option value="html">HTML / 脚本标签</option><option value="javascript">纯 JavaScript（无 script 标签）</option></select></div>
+                            <div class="form-group"><label class="form-label" for="adSearchMode">加载方式</label><select id="adSearchMode" class="form-input"><option value="auto">自动（识别 document.write）</option><option value="inline">页面内（现代广告 SDK）</option><option value="iframe">iframe 兼容（旧式广告）</option></select></div>
+                        </div>
                         <div class="form-group">
                             <textarea id="adSearchCode" class="form-textarea form-mono" rows="4"
                                 placeholder="粘贴搜索区广告 HTML/JS 代码"></textarea>
@@ -444,6 +463,10 @@
                             <span class="api-section-hint">展示在查询结果顶部</span>
                         </div>
                         <label class="check-row"><input type="checkbox" id="adResultEnabled"> 启用结果区广告位</label>
+                        <div class="ad-options">
+                            <div class="form-group"><label class="form-label" for="adResultType">代码类型</label><select id="adResultType" class="form-input"><option value="html">HTML / 脚本标签</option><option value="javascript">纯 JavaScript（无 script 标签）</option></select></div>
+                            <div class="form-group"><label class="form-label" for="adResultMode">加载方式</label><select id="adResultMode" class="form-input"><option value="auto">自动（识别 document.write）</option><option value="inline">页面内（现代广告 SDK）</option><option value="iframe">iframe 兼容（旧式广告）</option></select></div>
+                        </div>
                         <div class="form-group">
                             <textarea id="adResultCode" class="form-textarea form-mono" rows="4"
                                 placeholder="粘贴结果区广告 HTML/JS 代码"></textarea>
@@ -456,6 +479,10 @@
                             <span class="api-section-hint">展示在页脚上方</span>
                         </div>
                         <label class="check-row"><input type="checkbox" id="adFooterEnabled"> 启用底部广告位</label>
+                        <div class="ad-options">
+                            <div class="form-group"><label class="form-label" for="adFooterType">代码类型</label><select id="adFooterType" class="form-input"><option value="html">HTML / 脚本标签</option><option value="javascript">纯 JavaScript（无 script 标签）</option></select></div>
+                            <div class="form-group"><label class="form-label" for="adFooterMode">加载方式</label><select id="adFooterMode" class="form-input"><option value="auto">自动（识别 document.write）</option><option value="inline">页面内（现代广告 SDK）</option><option value="iframe">iframe 兼容（旧式广告）</option></select></div>
+                        </div>
                         <div class="form-group">
                             <textarea id="adFooterCode" class="form-textarea form-mono" rows="4"
                                 placeholder="粘贴底部广告 HTML/JS 代码"></textarea>
@@ -515,7 +542,7 @@
         </main>
     </div>
 
-    <script src="/js/admin.js"></script>
+    <script src="/js/admin.js?v=1.1.12"></script>
 </body>
 
 </html>

@@ -24,7 +24,47 @@ A multi-source IP geolocation, network info, and security detection system with 
 - 🔗 **接口地址配置** — 自定义各数据源 API 端点地址，方便接入代理或新数据源
 - 🗺️ **地图设置** — 配置 Nominatim 联系邮箱
 - 🔒 **安全设置** — 修改管理密码
+- 📢 **广告位管理** — Head、顶部、搜索区、结果区、底部五个位置，支持 HTML / 纯 JS 和旧式脚本兼容加载
 - ⚡ **实时生效** — 所有设置修改即时生效，无需重启服务
+
+## 广告位配置与验证
+
+进入 `/admin` → **广告**，勾选对应广告位，粘贴代码并保存，然后刷新前台。
+
+| 广告位 | 前台位置 / 加载时机 |
+|------|------|
+| Head | 服务端注入 `<head>`，适合平台初始化、统计或验证；本身不是可见横幅 |
+| 顶部 | 标题下方，首页加载 |
+| 搜索区 | 搜索框下方，首页加载 |
+| 结果区 | 查询结果顶部，查询成功、结果容器可见后才执行；重复查询不重复初始化 |
+| 底部 | 页脚上方，首页加载 |
+
+**代码类型**：含 `<script>` 标签的完整代码、文字、图片或 iframe 选 **HTML / 脚本标签**；不带 `<script>` 标签的 JavaScript 选 **纯 JavaScript**。旧配置默认按 HTML 加载，保留原有启用状态和代码。
+
+**加载方式**：
+- **自动**：通常在主页面执行；代码中直接出现 `document.write` / `document.writeln` 时，在独立 iframe 文档中解析，避免覆盖主页面。
+- **页面内**：适合 AdSense 等需要主页面 DOM 的现代 SDK；普通外部脚本加载完后再执行后续初始化，显式 `async` 保留异步语义。不要用于会调用 `document.write` 的脚本。
+- **iframe 兼容**：适合外部文件内部使用 `document.write` 的旧广告，支持自动调整高度。无法访问源代码的外部脚本不会被自动识别，请手动选择此模式。要求直接操作主页面 DOM 的 SDK 不适合此模式。
+
+所有广告代码具有脚本执行权限，iframe 模式是兼容隔离而不是安全沙箱；只允许可信管理员配置可信平台代码，不要粘贴未知来源脚本。
+
+**排查不显示**：
+1. 确认广告位已启用、代码非空，后台保存成功；结果区必须先完成一次查询。
+2. 浏览器 Network 检查 `/api/ads` 的启用状态、代码类型和加载方式；Head 从首页 HTML 检查。广告接口与首页禁止缓存，静态资源使用版本参数规避旧缓存。
+3. 检查广告拦截插件、脚本请求失败、HTTPS 页面中的 HTTP 资源、平台域名审核或无广告填充。这些情况无法仅靠网站代码解决。
+4. 查看浏览器控制台 `[Ads:广告位ID]` 提示，以及容器 `data-ad-status` / `data-ad-error`。`pending` 表示等待结果区显示；`loaded` 仅表示配置/脚本加载完成，不代表平台一定返回了广告。
+
+**回归测试**（开发测试环境需要 Node.js 20+；测试使用临时目录，不修改实际 `data/settings.json`）：
+
+```bash
+npm install
+npm test
+# macOS 默认可复用已安装的 Google Chrome；其他环境先安装测试浏览器
+npx playwright install chromium
+npm run test:browser
+```
+
+可通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` 指定 Chromium / Chrome 可执行文件。测试覆盖配置保存与旧配置迁移、权限及格式校验、HTML / JS / iframe、脚本顺序和异步语义、结果区延迟加载、错误隔离和后台到前台的完整操作。
 
 ## 📦 技术栈 / Tech Stack
 
@@ -266,6 +306,8 @@ pm2 restart ip-query
 
 ### 维护者：如何发布新版本
 
+本项目直接运行 Node.js 和静态前端，没有编译或打包依赖。发布构建是从**已审核的固定 tag**生成源码归档，不从脏工作区复制文件。当前广告修复版本与检查限制见 [v1.1.12 发布记录](docs/releases/v1.1.12.md)。
+
 ```bash
 # 1. 提交并推送代码到 main
 git push origin main
@@ -277,6 +319,10 @@ gh release create v1.1.0 --title "v1.1.0" --notes "## 更新内容
 ```
 
 发布后，所有部署方在后台「检查更新」即可看到 `v1.1.0` 及其更新说明。
+
+正式发布时，先更新 `package.json` / `package-lock.json` 版本和静态资源缓存参数，完成测试与审查，提交所有新增运行模块；为该提交创建未使用的 annotated tag，并核对远端没有漂移。将分支和 tag 一并推送，Release 必须引用该 tag。
+
+源码附件采用单一版本目录前缀，提供 `.tar.gz`、`.zip` 和 `SHA256SUMS`。归档必须与 tag 的 Git 文件树逐文件一致，不包含 `.env`、实际 `data/settings.json`、`node_modules` 或测试输出；`.env.example` 仅允许经审查的示例占位值。发布后下载附件，核对本地构建摘要与归档内容，并验证远端分支和 tag 都指向已审核提交。
 
 ### 方式二：命令行手动更新
 
@@ -326,7 +372,10 @@ ip-query/
 ├── .env.example           # 环境变量模板
 ├── nginx.conf             # Nginx 配置参考
 ├── lib/
-│   └── settings.js        # 设置管理模块
+│   ├── settings.js        # 设置管理模块
+│   └── ads.js             # 广告配置校验与 Head 代码包装
+├── test/                  # 临时配置的接口和浏览器回归测试
+├── docs/releases/         # 版本发布记录与验证限制
 ├── data/
 │   └── settings.json      # 持久化设置 (自动生成)
 └── public/
@@ -337,6 +386,7 @@ ip-query/
     │   └── admin.css       # 管理后台样式
     └── js/
         ├── app.js          # 前台逻辑 (含 Leaflet 地图)
+        ├── ads.js          # 独立广告加载、执行与兼容模式
         └── admin.js        # 管理后台逻辑
 ```
 

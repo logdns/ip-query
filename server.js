@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const settings = require('./lib/settings');
+const { validateAds, adMarkup } = require('./lib/ads');
 
 // ── Git 命令封装 (用于后台在线更新) ──
 function git(args, opts = {}) {
@@ -24,7 +25,7 @@ function git(args, opts = {}) {
 const app = express();
 const PORT = process.env.PORT || 3008;
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 function pickSeo(seo, lang = 'en') {
     const localized = seo.localized || {};
@@ -39,12 +40,12 @@ function renderIndexHtml(html, lang = 'en') {
     const s = settings.get();
     const seo = s.seo || {};
     const currentSeo = pickSeo(seo, lang);
-    const headAd = s.ads?.head?.enabled ? (s.ads.head.code || '') : '';
+    const headAd = s.ads?.head?.enabled ? adMarkup(s.ads.head) : '';
     return html
         .replace(/\{\{SEO_TITLE\}\}/g, currentSeo.title || seo.title || 'IP Query System')
         .replace(/\{\{SEO_DESC\}\}/g, currentSeo.description || seo.description || 'Multi-source IP query system')
         .replace(/\{\{SEO_KEYWORDS\}\}/g, currentSeo.keywords || seo.keywords || 'IP lookup,IP address,GeoIP')
-        .replace(/\{\{HEAD_AD\}\}/g, headAd);
+        .replace(/\{\{HEAD_AD\}\}/g, () => headAd);
 }
 
 // ── SEO 模板渲染: 替换 index.html 中的 SEO 占位符 ──
@@ -53,6 +54,7 @@ app.get(['/', '/index.html'], (req, res) => {
     fs.readFile(htmlPath, 'utf8', (err, html) => {
         if (err) return res.status(500).send('Internal Server Error');
         const rendered = renderIndexHtml(html, req.query.lang);
+        res.set('Cache-Control', 'no-store');
         res.set('Content-Type', 'text/html');
         res.send(rendered);
     });
@@ -547,8 +549,11 @@ app.get('/api/ads', (req, res) => {
         visible[key] = {
             enabled: !!ads[key]?.enabled,
             code: ads[key]?.code || '',
+            type: ads[key]?.type || 'html',
+            mode: ads[key]?.mode || 'auto',
         };
     }
+    res.set('Cache-Control', 'no-store');
     res.json(visible);
 });
 
@@ -574,6 +579,7 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
     // 脱敏返回 — 密码不完整显示
     const safe = JSON.parse(JSON.stringify(s));
     safe.admin.password = s.admin?.password || '';
+    res.set('Cache-Control', 'no-store');
     res.json(safe);
 });
 
@@ -581,6 +587,11 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
 // 管理后台: 更新设置 (需认证)
 // ═══════════════════════════════════════════
 app.put('/api/admin/settings', requireAdmin, (req, res) => {
+    try {
+        if (req.body.ads !== undefined) validateAds(req.body.ads);
+    } catch (err) {
+        return res.status(400).json({ error: true, message: err.message });
+    }
     try {
         const updated = settings.update(req.body);
         res.json({ success: true, settings: updated });

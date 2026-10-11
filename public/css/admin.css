@@ -299,6 +299,12 @@ body::before {
     min-height: 80px;
 }
 
+.ad-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 16px;
+}
+
 .form-hint {
     font-size: 0.78rem;
     color: var(--text-tertiary);

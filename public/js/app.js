@@ -30,12 +30,6 @@
     const compTableBody = $('#compTableBody');
     const securityGrid = $('#securityGrid');
     const bgParticles = $('#bgParticles');
-    const adSlots = {
-        top: $('#adTop'),
-        search: $('#adSearch'),
-        result: $('#adResult'),
-        footer: $('#adFooter'),
-    };
 
     let detectedIP = null;
     let leafletMap = null;
@@ -304,43 +298,6 @@
             browserInfo.textContent = navigator.userAgent.substring(0, 60) + '...';
             uaRaw.textContent = navigator.userAgent;
         }
-    }
-
-    // ═══════════════════════════════════════════
-    // 广告位渲染
-    // ═══════════════════════════════════════════
-    async function loadAds() {
-        try {
-            const res = await fetch('/api/ads', { cache: 'no-store' });
-            if (!res.ok) return;
-            const ads = await res.json();
-            for (const [key, el] of Object.entries(adSlots)) {
-                const ad = ads?.[key];
-                if (!el || !ad?.enabled || !ad.code) {
-                    if (el) el.classList.add('hidden');
-                    continue;
-                }
-                renderAdCode(el, ad.code);
-                el.classList.remove('hidden');
-            }
-        } catch {
-            // 广告加载失败不影响主功能。
-        }
-    }
-
-    function renderAdCode(el, code) {
-        el.innerHTML = code;
-
-        // Scripts inserted through innerHTML do not execute in browsers.
-        // Recreate them so common ad platform snippets can render normally.
-        el.querySelectorAll('script').forEach((oldScript) => {
-            const newScript = document.createElement('script');
-            for (const attr of oldScript.attributes) {
-                newScript.setAttribute(attr.name, attr.value);
-            }
-            newScript.textContent = oldScript.textContent;
-            oldScript.replaceWith(newScript);
-        });
     }
 
     // ═══════════════════════════════════════════
@@ -765,7 +722,6 @@
         initTheme();
         createParticles();
         loadSeo();
-        loadAds();
         detectMyIP();
         detectBrowser();
     }

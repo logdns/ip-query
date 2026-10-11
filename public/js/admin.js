@@ -144,7 +144,9 @@
         };
         if (body) opts.body = JSON.stringify(body);
         const res = await fetch(url, opts);
-        return res.json();
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || `请求失败: HTTP ${res.status}`);
+        return data;
     }
 
     // ═══════════════════════════════════════════
@@ -190,6 +192,12 @@
         $('#adResultCode').value = ads.result?.code || '';
         $('#adFooterEnabled').checked = !!ads.footer?.enabled;
         $('#adFooterCode').value = ads.footer?.code || '';
+        for (const key of ['Head', 'Top', 'Search', 'Result', 'Footer']) {
+            const ad = ads[key.toLowerCase()] || {};
+            $(`#ad${key}Type`).value = ad.type || 'html';
+            const mode = $(`#ad${key}Mode`);
+            if (mode) mode.value = ad.mode || 'auto';
+        }
     }
 
     // ═══════════════════════════════════════════
@@ -226,28 +234,12 @@
             admin: {
                 password: $('#adminPassword').value.trim(),
             },
-            ads: {
-                head: {
-                    enabled: $('#adHeadEnabled').checked,
-                    code: $('#adHeadCode').value,
-                },
-                top: {
-                    enabled: $('#adTopEnabled').checked,
-                    code: $('#adTopCode').value,
-                },
-                search: {
-                    enabled: $('#adSearchEnabled').checked,
-                    code: $('#adSearchCode').value,
-                },
-                result: {
-                    enabled: $('#adResultEnabled').checked,
-                    code: $('#adResultCode').value,
-                },
-                footer: {
-                    enabled: $('#adFooterEnabled').checked,
-                    code: $('#adFooterCode').value,
-                },
-            },
+            ads: Object.fromEntries(['Head', 'Top', 'Search', 'Result', 'Footer'].map((key) => [key.toLowerCase(), {
+                enabled: $(`#ad${key}Enabled`).checked,
+                code: $(`#ad${key}Code`).value,
+                type: $(`#ad${key}Type`).value,
+                mode: $(`#ad${key}Mode`)?.value || 'inline',
+            }])),
         };
     }
 
@@ -303,13 +295,20 @@
             if (!data.admin.password) {
                 throw new Error('管理密码不能为空');
             }
+            for (const [key, ad] of Object.entries(data.ads)) {
+                if (ad.enabled && !ad.code.trim()) throw new Error(`${key}: 已启用的广告位不能为空`);
+                if (ad.code.length > 64 * 1024) throw new Error(`${key}: 广告代码不能超过 64K 字符`);
+                if (ad.type === 'javascript' && /^\s*<script\b/i.test(ad.code)) {
+                    throw new Error(`${key}: 纯 JavaScript 类型不需要 <script> 标签，请改选 HTML / 脚本标签`);
+                }
+            }
 
             const res = await api('PUT', '/api/admin/settings', data);
 
             if (res.error) throw new Error(res.message);
             if (res.settings) populateFields(res.settings);
 
-            showStatus('✅ 保存成功！设置已实时生效', 'success');
+            showStatus('✅ 保存成功！设置已生效，广告请刷新前台验证', 'success');
         } catch (err) {
             showStatus('❌ 保存失败: ' + err.message, 'error');
         } finally {
