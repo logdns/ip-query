@@ -182,18 +182,10 @@
 
         // Ads
         const ads = data.ads || {};
-        $('#adHeadEnabled').checked = !!ads.head?.enabled;
-        $('#adHeadCode').value = ads.head?.code || '';
-        $('#adTopEnabled').checked = !!ads.top?.enabled;
-        $('#adTopCode').value = ads.top?.code || '';
-        $('#adSearchEnabled').checked = !!ads.search?.enabled;
-        $('#adSearchCode').value = ads.search?.code || '';
-        $('#adResultEnabled').checked = !!ads.result?.enabled;
-        $('#adResultCode').value = ads.result?.code || '';
-        $('#adFooterEnabled').checked = !!ads.footer?.enabled;
-        $('#adFooterCode').value = ads.footer?.code || '';
-        for (const key of ['Head', 'Top', 'Search', 'Result', 'Footer']) {
+        for (const key of ['Head', 'Top', 'Search', 'Result', 'Footer', 'Left', 'Right']) {
             const ad = ads[key.toLowerCase()] || {};
+            $(`#ad${key}Enabled`).checked = !!ad.enabled;
+            $(`#ad${key}Code`).value = ad.code || '';
             $(`#ad${key}Type`).value = ad.type || 'html';
             const mode = $(`#ad${key}Mode`);
             if (mode) mode.value = ad.mode || 'auto';
@@ -234,7 +226,7 @@
             admin: {
                 password: $('#adminPassword').value.trim(),
             },
-            ads: Object.fromEntries(['Head', 'Top', 'Search', 'Result', 'Footer'].map((key) => [key.toLowerCase(), {
+            ads: Object.fromEntries(['Head', 'Top', 'Search', 'Result', 'Footer', 'Left', 'Right'].map((key) => [key.toLowerCase(), {
                 enabled: $(`#ad${key}Enabled`).checked,
                 code: $(`#ad${key}Code`).value,
                 type: $(`#ad${key}Type`).value,

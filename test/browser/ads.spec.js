@@ -177,3 +177,182 @@ test('administrator rejects empty enabled slots and script tags in JavaScript mo
     const res = await fetch(`${server.url}/api/ads`);
     expect((await res.json()).top.enabled).toBeFalsy();
 });
+
+test('identical singleton advertising code renders independently in all six visible slots', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 900 });
+    await page.route('**/fixture-singleton.js', (route) => route.fulfill({
+        contentType: 'application/javascript',
+        body: 'if (!window.widgetStarted) { window.widgetStarted = true; setTimeout(function () { document.getElementById(widgetOptions.target).textContent = "Repeated banner"; }, 100); }',
+    }));
+    const code = '<div id="shared-widget"></div><script>var widgetOptions = {target: "shared-widget"};</script><script src="/fixture-singleton.js"></script>';
+    await saveAds(Object.fromEntries(['top', 'search', 'result', 'footer', 'left', 'right'].map((key) => [key, {
+        enabled: true, type: 'html', mode: 'auto', code,
+    }])));
+    await page.goto(server.url);
+    for (const id of ['adTop', 'adSearch', 'adFooter', 'adLeft', 'adRight']) {
+        await expect(page.frameLocator(`#${id} .ad-frame`).locator('#shared-widget')).toHaveText('Repeated banner');
+    }
+    await expect(page.locator('#adResult')).toHaveAttribute('data-ad-status', 'pending');
+    await page.locator('#ipInput').fill('8.8.8.8');
+    await page.locator('#btnSearch').click();
+    await expect(page.frameLocator('#adResult .ad-frame').locator('#shared-widget')).toHaveText('Repeated banner');
+    await page.locator('#btnSearch').click();
+    for (const id of ['adTop', 'adSearch', 'adResult', 'adFooter', 'adLeft', 'adRight']) {
+        expect(await page.frameLocator(`#${id} .ad-frame`).locator('#shared-widget').count()).toBe(1);
+    }
+});
+
+test('duplicate legacy async loaders keep parser document.write and global options isolated', async ({ page }) => {
+    await page.route('**/fixture-async-write.js', (route) => route.fulfill({
+        contentType: 'application/javascript',
+        body: 'document.write("<b id=legacy-copy>" + atOptions.label + "</b>");',
+    }));
+    const code = '<script>var atOptions = {label: "Independent legacy"};</script><script async src="/fixture-async-write.js"></script>';
+    await saveAds({ top: { enabled: true, code }, search: { enabled: true, code } });
+    await page.goto(server.url);
+    for (const id of ['adTop', 'adSearch']) {
+        await expect(page.frameLocator(`#${id} .ad-frame`).locator('#legacy-copy')).toHaveText('Independent legacy');
+        await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-frame-reason', 'repeated-code');
+    }
+    expect(await page.evaluate(() => window.atOptions)).toBeUndefined();
+    await expect(page.locator('#ipInput')).toBeVisible();
+});
+
+test('identical pure JavaScript can reuse top-level constants in separate slot globals', async ({ page }) => {
+    const code = 'const bannerLabel = "JS copy"; document.currentScript.insertAdjacentHTML("beforebegin", "<b id=js-copy>" + bannerLabel + "</b>");';
+    await saveAds(Object.fromEntries(['top', 'search', 'footer'].map((key) => [key, {
+        enabled: true, code, type: 'javascript', mode: 'auto',
+    }])));
+    await page.goto(server.url);
+    for (const id of ['adTop', 'adSearch', 'adFooter']) {
+        await expect(page.frameLocator(`#${id} .ad-frame`).locator('#js-copy')).toHaveText('JS copy');
+        await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-status', 'loaded');
+    }
+});
+
+test('repeated native async widget snippets keep a script-before-container layout working', async ({ page }) => {
+    await page.route('**/fixture-native-widget.js', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await route.fulfill({
+            contentType: 'application/javascript',
+            body: 'var target = document.getElementById("native-container"); if (!target) throw new Error("native target missing"); target.textContent = "Native banner";',
+        });
+    });
+    const code = '<script async data-cfasync="false" src="/fixture-native-widget.js"></script><div id="native-container"></div>';
+    await saveAds({ top: { enabled: true, code }, search: { enabled: true, code } });
+    await page.goto(server.url);
+    for (const id of ['adTop', 'adSearch']) {
+        await expect(page.frameLocator(`#${id} .ad-frame`).locator('#native-container')).toHaveText('Native banner');
+        await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-status', 'loaded');
+    }
+});
+
+test('auto mode preserves repeated main-page SDK snippets and explicit inline mode', async ({ page }) => {
+    const modern = '<ins class="adsbygoogle"></ins><script>window.adsbygoogle = window.adsbygoogle || []; window.adsbygoogle.push({}); document.currentScript.parentElement.querySelector("ins").textContent = "Modern SDK";</script>';
+    const inline = 'window.pageAdCount = (window.pageAdCount || 0) + 1; document.currentScript.insertAdjacentHTML("beforebegin", "<b>Explicit page code</b>");';
+    await saveAds({
+        top: { enabled: true, code: modern, mode: 'auto' },
+        search: { enabled: true, code: modern, mode: 'auto' },
+        footer: { enabled: true, code: inline, type: 'javascript', mode: 'inline' },
+        result: { enabled: true, code: inline, type: 'javascript', mode: 'inline' },
+    });
+    await page.goto(server.url);
+    for (const id of ['adTop', 'adSearch']) {
+        await expect(page.locator(`#${id} ins`)).toHaveText('Modern SDK');
+        await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-mode', 'inline');
+        await expect(page.locator(`#${id} .ad-frame`)).toHaveCount(0);
+    }
+    expect(await page.evaluate(() => window.adsbygoogle.length)).toBe(2);
+    await page.locator('#ipInput').fill('8.8.8.8');
+    await page.locator('#btnSearch').click();
+    await expect(page.locator('#adResult b')).toHaveText('Explicit page code');
+    expect(await page.evaluate(() => window.pageAdCount)).toBe(2);
+});
+
+test('disabled duplicate configurations do not isolate an otherwise unique page snippet', async ({ page }) => {
+    const code = 'window.uniqueAdReady = true; document.currentScript.insertAdjacentHTML("beforebegin", "<b>Unique page ad</b>");';
+    await saveAds({
+        top: { enabled: true, code, type: 'javascript', mode: 'auto' },
+        left: { enabled: false, code, type: 'javascript', mode: 'auto' },
+        result: { enabled: false, code, type: 'javascript', mode: 'auto' },
+    });
+    await page.goto(server.url);
+    await expect(page.locator('#adTop b')).toHaveText('Unique page ad');
+    await expect(page.locator('#adTop')).toHaveAttribute('data-ad-mode', 'inline');
+    expect(await page.evaluate(() => window.uniqueAdReady)).toBeTruthy();
+});
+
+test('side advertising waits for desktop space, stays outside content, and closes independently', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const code = '<div id=side-widget style="height:600px">Side banner</div><script>window.sideRuns = (window.sideRuns || 0) + 1;</script>';
+    await saveAds({ left: { enabled: true, code }, right: { enabled: true, code } });
+    await page.goto(server.url);
+    for (const id of ['adLeft', 'adRight']) {
+        await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-status', 'pending');
+        await expect(page.locator(`#${id} .ad-frame`)).toHaveCount(0);
+    }
+    for (const width of [1280, 1499]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.locator('#adSidebarLeft')).toBeHidden();
+        await expect(page.locator('#adSidebarRight')).toBeHidden();
+        await expect(page.locator('#adLeft .ad-frame')).toHaveCount(0);
+    }
+    for (const width of [1500, 1920]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const id of ['adLeft', 'adRight']) {
+            await expect(page.frameLocator(`#${id} .ad-frame`).locator('#side-widget')).toHaveText('Side banner');
+            await expect(page.locator(`#${id}`)).toHaveAttribute('data-ad-status', 'loaded');
+        }
+        const left = await page.locator('#adSidebarLeft').boundingBox();
+        const right = await page.locator('#adSidebarRight').boundingBox();
+        const main = await page.locator('.app-container').boundingBox();
+        expect(left.x).toBeGreaterThanOrEqual(0);
+        expect(left.x + left.width).toBeLessThan(main.x);
+        expect(right.x).toBeGreaterThan(main.x + main.width);
+        expect(right.x + right.width).toBeLessThanOrEqual(width);
+    }
+    await page.locator('[data-ad-close="adLeft"]').click();
+    await expect(page.locator('#adSidebarLeft')).toBeHidden();
+    await expect(page.locator('#adLeft')).toHaveAttribute('data-ad-status', 'dismissed');
+    await expect(page.locator('#adLeft .ad-frame')).toHaveCount(0);
+    await expect(page.locator('#adSidebarRight')).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('#adSidebarRight')).toBeHidden();
+    await page.setViewportSize({ width: 1920, height: 900 });
+    await expect(page.locator('#adSidebarLeft')).toBeHidden();
+    await expect(page.locator('#adSidebarRight')).toBeVisible();
+    await page.locator('#langSelect').selectOption('zh');
+    await page.locator('#themeToggle').click();
+    await expect(page.locator('#adSidebarLeft')).toBeHidden();
+    await expect(page.locator('#adSidebarRight')).toBeVisible();
+    const frame = await page.locator('#adRight .ad-frame').elementHandle();
+    const content = await frame.contentFrame();
+    expect(await content.evaluate(() => window.sideRuns)).toBe(1);
+});
+
+test('administrator saves and reloads both side slots then applies repeated code in separate frames', async ({ page }) => {
+    await page.goto(`${server.url}/admin`);
+    await page.locator('#loginPassword').fill(PASSWORD);
+    await page.locator('#loginForm').evaluate((form) => form.requestSubmit());
+    await expect(page.locator('#adminApp')).toBeVisible();
+    await page.locator('[data-tab="ads"]').click();
+    const code = '<div id=saved-side style="height:200px">Saved side</div><script>var widgetInitialized = true;</script>';
+    for (const key of ['Left', 'Right']) {
+        await page.locator(`#ad${key}Enabled`).check();
+        await page.locator(`#ad${key}Code`).fill(code);
+        await page.locator(`#ad${key}Mode`).selectOption('auto');
+    }
+    await page.locator('#btnSave').click();
+    await expect(page.locator('#saveStatus')).toContainText('保存成功');
+    await page.reload();
+    await page.locator('[data-tab="ads"]').click();
+    for (const key of ['Left', 'Right']) {
+        await expect(page.locator(`#ad${key}Enabled`)).toBeChecked();
+        await expect(page.locator(`#ad${key}Code`)).toHaveValue(code);
+    }
+    await page.setViewportSize({ width: 1920, height: 900 });
+    await page.goto(server.url);
+    for (const id of ['adLeft', 'adRight']) {
+        await expect(page.frameLocator(`#${id} .ad-frame`).locator('#saved-side')).toHaveText('Saved side');
+    }
+});

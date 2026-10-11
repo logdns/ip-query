@@ -2,10 +2,12 @@
     'use strict';
 
     const slots = new Map();
+    const SLOT_KEYS = ['top', 'search', 'result', 'footer', 'left', 'right'];
     const SCRIPT_TIMEOUT = 15000;
     let scriptSequence = 0;
 
     function setStatus(el, status, message = '') {
+        if (el.dataset.adStatus === 'dismissed' && status !== 'dismissed') return;
         el.dataset.adStatus = status;
         if (message) el.dataset.adError = message;
         else delete el.dataset.adError;
@@ -17,8 +19,28 @@
         return `<script>${ad.code.replace(/<\/script/gi, '<\\/script')}</script>`;
     }
 
-    function useFrame(ad) {
-        return ad.mode === 'iframe' || (ad.mode !== 'inline' && /\bdocument\s*\.\s*write(?:ln)?\s*\(/i.test(ad.code));
+    function isPageSdk(ad) {
+        return /\b(?:adsbygoogle|googletag)\b|(?:pagead2\.googlesyndication\.com|securepubads\.g\.doubleclick\.net)/i.test(ad.code);
+    }
+
+    function frameReason(ad) {
+        if (ad.mode === 'iframe') return 'configured';
+        if (ad.mode === 'inline') return '';
+        if (/\bdocument\s*\.\s*write(?:ln)?\s*\(/i.test(ad.code)) return 'document-write';
+        if (ad.repeated && !isPageSdk(ad)) return 'repeated-code';
+        return '';
+    }
+
+    function findRepeatedCodes(ads) {
+        const counts = new Map();
+        for (const key of SLOT_KEYS) {
+            const ad = ads[key];
+            if (!ad?.enabled || typeof ad.code !== 'string' || !ad.code.trim()) continue;
+            if (ad.type !== 'javascript' && !/<script\b/i.test(ad.code)) continue;
+            const signature = JSON.stringify([ad.type || 'html', ad.code.trim()]);
+            counts.set(signature, (counts.get(signature) || 0) + 1);
+        }
+        return counts;
     }
 
     function runScript(oldScript, el) {
@@ -115,21 +137,49 @@
             addEventListener('resize', resize);
         })();<\/script>`;
         const base = document.baseURI.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-        frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${base}"><style>html{margin:0;padding:0}body{margin:0;padding:0;display:flow-root;text-align:center;overflow-wrap:anywhere}img,iframe,ins{max-width:100%}</style>${bridge}</head><body>${markup(ad)}</body></html>`;
+        const content = document.createElement('template');
+        content.innerHTML = markup(ad);
+        const hasContainer = !!content.content.querySelector(':not(script):not(style):not(link):not(meta):not(template)');
+        const parserLoader = !hasContainer || /\bdocument\s*\.\s*write(?:ln)?\s*\(|\batOptions\s*=/i.test(ad.code);
+        // Legacy writers need parser order; native widgets may require their async
+        // script to run only after a later container has been parsed.
+        if (parserLoader) {
+            for (const script of content.content.querySelectorAll('script[src]')) {
+                if (script.type === 'module') continue;
+                script.removeAttribute('async');
+                script.removeAttribute('defer');
+            }
+        }
+        frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="${base}"><style>html{margin:0;padding:0}body{margin:0;padding:0;display:flow-root;text-align:center;overflow-wrap:anywhere}img,iframe,ins{max-width:100%}</style>${bridge}</head><body>${content.innerHTML}</body></html>`;
     }
 
     function renderVisible() {
         for (const [el, ad] of slots) {
             if (el.dataset.adStatus !== 'pending' || el.closest('.hidden')) continue;
+            const sidebar = el.closest('.ad-sidebar');
+            if (sidebar && !sidebar.getClientRects().length) continue;
             // Ad SDKs need a measurable container before they initialize.
             el.classList.remove('hidden');
             setStatus(el, 'loading');
-            if (useFrame(ad)) renderFrame(el, ad);
+            const reason = frameReason(ad);
+            el.dataset.adMode = reason ? 'iframe' : 'inline';
+            if (reason) el.dataset.adFrameReason = reason;
+            if (reason) renderFrame(el, ad);
             else renderInline(el, ad).catch((err) => setStatus(el, 'error', err.message));
         }
     }
 
     async function init() {
+        document.querySelectorAll('[data-ad-close]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const el = document.getElementById(button.dataset.adClose);
+                const sidebar = el?.closest('.ad-sidebar');
+                if (!sidebar) return;
+                setStatus(el, 'dismissed');
+                sidebar.classList.add('hidden');
+                if (el.querySelector('.ad-frame')) el.replaceChildren();
+            });
+        });
         window.addEventListener('message', (event) => {
             if (!event.data?.ipQueryAd) return;
             for (const el of slots.keys()) {
@@ -144,18 +194,24 @@
             const res = await fetch('/api/ads', { cache: 'no-store' });
             if (!res.ok) throw new Error(`Ad configuration request failed: HTTP ${res.status}`);
             const ads = await res.json();
-            for (const key of ['top', 'search', 'result', 'footer']) {
+            const repeated = findRepeatedCodes(ads);
+            for (const key of SLOT_KEYS) {
                 const el = document.getElementById(`ad${key[0].toUpperCase()}${key.slice(1)}`);
                 if (!el) continue;
                 const ad = ads[key];
+                const sidebar = el.closest('.ad-sidebar');
                 if (!ad?.enabled || typeof ad.code !== 'string' || !ad.code.trim()) {
                     el.classList.add('hidden');
+                    if (sidebar) sidebar.classList.add('hidden');
                     setStatus(el, 'disabled');
                     continue;
                 }
-                slots.set(el, ad);
+                const signature = JSON.stringify([ad.type || 'html', ad.code.trim()]);
+                // Plan every instance before any script runs, including the deferred result slot.
+                slots.set(el, { ...ad, repeated: (repeated.get(signature) || 0) > 1 });
                 setStatus(el, 'pending');
                 el.classList.remove('hidden');
+                if (sidebar) sidebar.classList.remove('hidden');
             }
             const results = document.getElementById('resultsSection');
             if (results) new MutationObserver(renderVisible).observe(results, { attributes: true, attributeFilter: ['class'] });

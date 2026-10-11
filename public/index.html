@@ -10,11 +10,20 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/inter-ui@4.1.0/inter.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
-    <link rel="stylesheet" href="/css/style.css?v=1.1.12">
+    <link rel="stylesheet" href="/css/style.css?v=1.1.13">
     {{HEAD_AD}}
 </head>
 
 <body data-theme="light" data-lang="en">
+
+    <aside class="ad-sidebar ad-sidebar-left hidden" id="adSidebarLeft" aria-label="Left advertisement">
+        <button class="ad-sidebar-close" type="button" data-ad-close="adLeft" aria-label="Close left advertisement">&times;</button>
+        <section class="ad-slot ad-slot-side" id="adLeft"></section>
+    </aside>
+    <aside class="ad-sidebar ad-sidebar-right hidden" id="adSidebarRight" aria-label="Right advertisement">
+        <button class="ad-sidebar-close" type="button" data-ad-close="adRight" aria-label="Close right advertisement">&times;</button>
+        <section class="ad-slot ad-slot-side" id="adRight"></section>
+    </aside>
 
     <!-- 右上角控制按钮 -->
     <div class="top-controls">
@@ -247,8 +256,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-    <script src="/js/ads.js?v=1.1.12"></script>
-    <script src="/js/app.js?v=1.1.12"></script>
+    <script src="/js/ads.js?v=1.1.13"></script>
+    <script src="/js/app.js?v=1.1.13"></script>
 </body>
 
 </html>

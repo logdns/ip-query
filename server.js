@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const settings = require('./lib/settings');
-const { validateAds, adMarkup } = require('./lib/ads');
+const { VISIBLE_SLOT_KEYS, validateAds, adMarkup } = require('./lib/ads');
 
 // ── Git 命令封装 (用于后台在线更新) ──
 function git(args, opts = {}) {
@@ -545,7 +545,7 @@ app.get('/api/seo', (req, res) => {
 app.get('/api/ads', (req, res) => {
     const ads = settings.get().ads || {};
     const visible = {};
-    for (const key of ['top', 'search', 'result', 'footer']) {
+    for (const key of VISIBLE_SLOT_KEYS) {
         visible[key] = {
             enabled: !!ads[key]?.enabled,
             code: ads[key]?.code || '',

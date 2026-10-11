@@ -1269,6 +1269,53 @@ body::before {
     margin-bottom: var(--space-lg);
 }
 
+.ad-sidebar {
+    display: none;
+    position: fixed;
+    top: 120px;
+    z-index: 5;
+    width: clamp(160px, calc((100vw - 1100px) / 2 - 40px), 280px);
+    max-height: calc(100dvh - 144px);
+    overflow-y: auto;
+}
+
+.ad-sidebar-left {
+    left: max(12px, calc((100vw - 1100px) / 4 - 140px));
+}
+
+.ad-sidebar-right {
+    right: max(12px, calc((100vw - 1100px) / 4 - 140px));
+}
+
+.ad-sidebar-close {
+    display: block;
+    margin: 0 0 6px auto;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.ad-sidebar-close:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.ad-sidebar .ad-slot-side {
+    margin: 0;
+    padding: 0;
+}
+
+@media (min-width: 1500px) {
+    .ad-sidebar {
+        display: block;
+    }
+}
+
 /* ── Browser Info / Detect Grid ── */
 .detect-grid {
     display: grid;

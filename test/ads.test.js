@@ -9,8 +9,8 @@ let server;
 before(async () => { server = await startServer(); });
 after(async () => { await server?.stop(); });
 
-test('administrator save persists all five slots and public API only exposes visible slots', async () => {
-    const ads = Object.fromEntries(['head', 'top', 'search', 'result', 'footer'].map((key) => [key, {
+test('administrator save persists all seven slots and public API only exposes visible slots', async () => {
+    const ads = Object.fromEntries(['head', 'top', 'search', 'result', 'footer', 'left', 'right'].map((key) => [key, {
         enabled: true, code: `<span>${key} $& $\` $'</span>`, type: 'html', mode: 'inline',
     }]));
     const save = await fetch(`${server.url}/api/admin/settings`, {
@@ -23,8 +23,10 @@ test('administrator save persists all five slots and public API only exposes vis
     const res = await fetch(`${server.url}/api/ads`);
     assert.equal(res.headers.get('cache-control'), 'no-store');
     const visible = await res.json();
-    assert.deepEqual(Object.keys(visible), ['top', 'search', 'result', 'footer']);
+    assert.deepEqual(Object.keys(visible), ['top', 'search', 'result', 'footer', 'left', 'right']);
     assert.deepEqual(visible.top, ads.top);
+    assert.deepEqual(visible.left, ads.left);
+    assert.deepEqual(visible.right, ads.right);
     for (const route of ['/', '/index.html?lang=zh']) {
         const page = await fetch(server.url + route);
         assert.equal(page.headers.get('cache-control'), 'no-store');
@@ -73,6 +75,8 @@ test('legacy settings receive advertising type/mode defaults without losing code
     const data = await (await fetch(`${server.url}/api/ads`)).json();
     assert.deepEqual(data.top, { enabled: true, code: '<b>Legacy</b>', type: 'html', mode: 'auto' });
     assert.equal(data.footer.enabled, false);
+    assert.deepEqual(data.left, { enabled: false, code: '', type: 'html', mode: 'auto' });
+    assert.deepEqual(data.right, { enabled: false, code: '', type: 'html', mode: 'auto' });
 });
 
 test('plain JavaScript is wrapped safely and HTML snippets remain unchanged', () => {
